@@ -1,38 +1,38 @@
 #include <Arduino.h>
 #include <TFT_eSPI.h> // Hardware-specific library
 
-TFT_eSPI tft = TFT_eSPI(); // Invoke custom library
+// 1. Include your converted card file
+#include "ace_of_spades.h" 
+
+TFT_eSPI tft = TFT_eSPI();
+
+// --- HELPER: SCALED DRAWING (For Giant Cards) ---
+// Draws an image but makes it 'scale' times bigger
+void drawScaledImage(int w, int h, const uint16_t *data, int scale) {
+  int x = (320-(w * scale)) / 2; // Centered for 320px height
+  int y = (480-(h * scale)) / 2; // Centered for 480px width
+  for (int row = 0; row < h; row++) {
+    for (int col = 0; col < w; col++) {
+      // 1. Get the color from the array
+      // Note: Some converters use uint8_t (bytes), so we might need to combine them.
+      // If your array is 'uint16_t', use this:
+      uint16_t color = data[row * w + col];
+
+      // 2. Draw a big square instead of a single dot
+      tft.fillRect(x + (col * scale), y + (row * scale), scale, scale, color);
+    }
+  }
+}
 
 void setup() {
   Serial.begin(115200);
-  
-  // Initialize the screen
   tft.init();
-  
-  // Rotate to landscape (1 or 3)
-  tft.setRotation(1); 
-  
-  // Fill screen with black
-  tft.fillScreen(TFT_BLACK);
-  
-  // Draw some test text
-  tft.setTextColor(TFT_WHITE, TFT_BLACK);
-  tft.setTextSize(2);
-  tft.setCursor(10, 10);
-  tft.println("ST7796 Driver Test");
-  
-  tft.setTextColor(TFT_GREEN, TFT_BLACK);
-  tft.setTextSize(4);
-  tft.println("It Works!");
-  
-  // Draw a red box
-  tft.fillRect(50, 100, 100, 50, TFT_RED);
+  tft.setRotation(2); 
+  tft.fillScreen(0x000);
+  tft.setSwapBytes(true); // Fixes weird colors (Blue/Red swap)
+
+  drawScaledImage(57, 79, ace_of_spades, 5);
 }
 
 void loop() {
-  // Blink the red box color
-  tft.fillRect(50, 100, 100, 50, TFT_RED);
-  delay(1000);
-  tft.fillRect(50, 100, 100, 50, TFT_BLUE);
-  delay(1000);
 }
