@@ -1,7 +1,6 @@
 #include <Arduino.h>
 #include <TFT_eSPI.h> // Hardware-specific library
-
-#include "cards/clubs/TenClubs.h"
+#include "deck.h"
 
 TFT_eSPI tft = TFT_eSPI();
 
@@ -28,10 +27,18 @@ void setup() {
   tft.init();
   tft.setRotation(2); 
   tft.fillScreen(0x000);
-  tft.setSwapBytes(true); // Fixes weird colors (Blue/Red swap)
-
-  drawScaledImage(64, 96, TenClubs, 5);
+  tft.setSwapBytes(true);
+  drawScaledImage(64, 96, deck[0], 5);
 }
 
 void loop() {
+  static unsigned long lastSwitch = 0;
+  static int currentCard = 0;
+
+  if (millis() - lastSwitch >= 1000) {
+    lastSwitch = millis();
+    currentCard = (currentCard + 1) % 52;
+    //tft.fillScreen(0x000);
+    drawScaledImage(64, 96, deck[currentCard], 5);
+  }
 }
