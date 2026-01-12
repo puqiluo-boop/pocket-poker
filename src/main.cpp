@@ -1,8 +1,7 @@
 #include <Arduino.h>
 #include <TFT_eSPI.h> // Hardware-specific library
 
-#include "cards/spades/AceSpades.h"
-#include "AceDiamonds.h"
+#include "cards/diamonds/JackDiamonds.h"
 
 TFT_eSPI tft = TFT_eSPI();
 
@@ -31,7 +30,7 @@ void setup() {
   tft.fillScreen(0x000);
   tft.setSwapBytes(true); // Fixes weird colors (Blue/Red swap)
 
-  drawScaledImage(64, 96, AceDiamonds, 5);
+  drawScaledImage(64, 96, JackDiamonds, 5);
 }
 
 void loop() {
