@@ -2,7 +2,7 @@
 #include <TFT_eSPI.h> // Hardware-specific library
 
 // 1. Include your converted card file
-#include "ace_of_spades.h" 
+#include "ASv2.h"
 
 TFT_eSPI tft = TFT_eSPI();
 
@@ -31,7 +31,7 @@ void setup() {
   tft.fillScreen(0x000);
   tft.setSwapBytes(true); // Fixes weird colors (Blue/Red swap)
 
-  drawScaledImage(57, 79, ace_of_spades, 5);
+  drawScaledImage(64, 96, ASv2, 5);
 }
 
 void loop() {
