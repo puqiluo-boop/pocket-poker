@@ -1,7 +1,7 @@
 #include <Arduino.h>
 #include <TFT_eSPI.h> // Hardware-specific library
 
-#include "cards/hearts/FourHearts.h"
+#include "cards/clubs/TenClubs.h"
 
 TFT_eSPI tft = TFT_eSPI();
 
@@ -30,7 +30,7 @@ void setup() {
   tft.fillScreen(0x000);
   tft.setSwapBytes(true); // Fixes weird colors (Blue/Red swap)
 
-  drawScaledImage(64, 96, FourHearts, 5);
+  drawScaledImage(64, 96, TenClubs, 5);
 }
 
 void loop() {
