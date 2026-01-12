@@ -1,8 +1,8 @@
 #include <Arduino.h>
 #include <TFT_eSPI.h> // Hardware-specific library
 
-// 1. Include your converted card file
-#include "ASv2.h"
+#include "AceSpades.h"
+#include "AceDiamonds.h"
 
 TFT_eSPI tft = TFT_eSPI();
 
@@ -31,7 +31,7 @@ void setup() {
   tft.fillScreen(0x000);
   tft.setSwapBytes(true); // Fixes weird colors (Blue/Red swap)
 
-  drawScaledImage(64, 96, ASv2, 5);
+  drawScaledImage(64, 96, AceSpades, 5);
 }
 
 void loop() {
