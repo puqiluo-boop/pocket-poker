@@ -38,7 +38,11 @@ void loop() {
 
   if (millis() - lastSwitch >= 1000) {
     lastSwitch = millis();
-    currentCard = (currentCard + 1) % 52;
+    currentCard = (currentCard + 1) % 53; // Assuming 52 cards + 1 back
+    if (currentCard == 52) {
+      drawScaledImage(Backside);
+    } else {
     drawScaledImage(deck[currentCard]);
+    }
   }
 }
