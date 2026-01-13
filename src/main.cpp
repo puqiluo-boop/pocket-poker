@@ -6,9 +6,10 @@ TFT_eSPI tft = TFT_eSPI();
 
 // --- HELPER: SCALED DRAWING (For Giant Cards) ---
 // Draws an image but makes it 'scale' times bigger
-void drawScaledImage(int w, int h, const uint16_t *data, int scale) {
-  int x = (320-(w * scale)) / 2; // Centered for 320px height
-  int y = (480-(h * scale)) / 2; // Centered for 480px width
+void drawScaledImage(const uint16_t *data) {
+  int w = 64;  // Width of the original image
+  int h = 96;  // Height of the original image
+  int scale = 5; // Scale factor
   for (int row = 0; row < h; row++) {
     for (int col = 0; col < w; col++) {
       // 1. Get the color from the array
@@ -17,7 +18,7 @@ void drawScaledImage(int w, int h, const uint16_t *data, int scale) {
       uint16_t color = data[row * w + col];
 
       // 2. Draw a big square instead of a single dot
-      tft.fillRect(x + (col * scale), y + (row * scale), scale, scale, color);
+      tft.fillRect((col * scale), (row * scale), 5, 5, color);
     }
   }
 }
@@ -28,7 +29,7 @@ void setup() {
   tft.setRotation(2); 
   tft.fillScreen(0x000);
   tft.setSwapBytes(true);
-  drawScaledImage(64, 96, deck[0], 5);
+  drawScaledImage(deck[0]);
 }
 
 void loop() {
@@ -39,6 +40,6 @@ void loop() {
     lastSwitch = millis();
     currentCard = (currentCard + 1) % 52;
     //tft.fillScreen(0x000);
-    drawScaledImage(64, 96, deck[currentCard], 5);
+    drawScaledImage(deck[currentCard]);
   }
 }
