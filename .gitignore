@@ -3,3 +3,11 @@
 .vscode/c_cpp_properties.json
 .vscode/launch.json
 .vscode/ipch
+
+# System specific
+.DS_Store
+Thumbs.db
+
+# C++ specific
+*.o
+*.out

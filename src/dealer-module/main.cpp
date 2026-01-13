@@ -1,6 +1,6 @@
 #include <Arduino.h>
 #include <TFT_eSPI.h> // Hardware-specific library
-#include "deck.h"
+#include "../lib/Deck/Deck.h"
 
 #define TABLE_GREEN 0x3329
 
