@@ -39,7 +39,6 @@ void loop() {
   if (millis() - lastSwitch >= 1000) {
     lastSwitch = millis();
     currentCard = (currentCard + 1) % 52;
-    //tft.fillScreen(0x000);
     drawScaledImage(deck[currentCard]);
   }
 }

@@ -68,6 +68,9 @@
 #include "cards/QueenDiamonds.h"
 #include "cards/KingDiamonds.h"
 
+// --- BACKSIDE ---
+#include "cards/Backside.h"
+
 // ==========================================
 // 2. THE MASTER DECK ARRAY
 // ==========================================
@@ -93,6 +96,8 @@ const uint16_t* deck[52] = {
     AceDiamonds, TwoDiamonds, ThreeDiamonds, FourDiamonds, FiveDiamonds, 
     SixDiamonds, SevenDiamonds, EightDiamonds, NineDiamonds, TenDiamonds, 
     JackDiamonds, QueenDiamonds, KingDiamonds
+
+    // Note: Backside is not included in the main deck
 };
 
 #endif
