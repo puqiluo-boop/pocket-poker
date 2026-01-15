@@ -1,12 +1,13 @@
-#ifndef DECK_H
-#define DECK_H
+#pragma once
 
 #include <Arduino.h>
 
 // ==========================================
 // 1. INCLUDE ALL 52 CARD FILES
 // ==========================================
-// Assumes filenames are like "AceSpades.h"
+
+#define CARD_WIDTH 64
+#define CARD_HEIGHT 96
 
 // --- SPADES ---
 #include "cards/AceSpades.h"
@@ -99,5 +100,3 @@ const uint16_t* deck[52] = {
 
     // Note: Backside is not included in the main deck
 };
-
-#endif

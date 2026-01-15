@@ -1,5 +1,8 @@
 #include <Arduino.h>
 #include <Arduino_GFX_Library.h>
+#include "../lib/Deck/Deck.h"
+#include "../lib/Deck/Trim.h"
+#include "../lib/Colors.h"
 
 // --- FINAL CONFIRMED PINOUT ---
 #define TFT_BL    1   
@@ -14,51 +17,83 @@ Arduino_DataBus *bus = new Arduino_ESP32SPI(
     TFT_DC, TFT_CS, TFT_SCK, TFT_MOSI, TFT_MISO
 );
 
-// --- THE FIX IS HERE ---
-// We changed the last number from 20 to 0.
 Arduino_GFX *gfx = new Arduino_ST7789(
     bus, TFT_RST, 
-    0 /* rotation */, true /* IPS */, 
+    3 /* rotation */, true /* IPS */, 
     240, 320, 
     0, 0, // col offset 1, row offset 1 (WAS 0, 20)
     0, 0  // col offset 2, row offset 2
 );
 
+// Helper function to determine if a pixel should be skipped based on trim array
+bool shouldSkipPixel(int row, int col, int scale) {
+    for (int i = 0; i < 24; i++) {
+        if (trim[i][0] == row && trim[i][1] == col) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// Helper function to draw a card at position (x, y)
+void drawScaledCard(int cardIndex, int x, int y, int scale) {
+    for (int row = 0; row < CARD_HEIGHT; row++) {
+        for (int col = 0; col < CARD_WIDTH; col++) {
+            if (shouldSkipPixel(row, col, scale)) {
+                continue; // Skip this pixel
+            }
+
+            // Get the color from the array
+            uint16_t color = deck[cardIndex][row * CARD_WIDTH + col];
+
+            // Draw a big square instead of a single dot
+            gfx->fillRect(x + (col * scale), y + (row * scale), scale, scale, color);
+        }
+    }
+}
+
+void drawTwoCards(int card1Index, int card2Index) {
+    gfx->fillScreen(TABLE_GREEN);
+
+    // Cards are 64x96 when scaled by 2 = 128x192
+    int scaledWidth = CARD_WIDTH * 2;   // 128
+    int scaledHeight = CARD_HEIGHT * 2; // 192
+
+    // Screen is 320x240
+    int screenWidth = 320;
+    int screenHeight = 240;
+    
+    // Vertical centering
+    int y = (screenHeight - scaledHeight) / 2;  // (320 - 192) / 2 = 64
+    
+    // Horizontal spacing: two cards side by side with gap
+    int gap = 10;
+    int totalWidth = (scaledWidth * 2) + gap;
+    int x1 = (screenWidth - totalWidth) / 2;
+    int x2 = x1 + scaledWidth + gap;
+    
+    drawScaledCard(card1Index, x1, y, 2);
+    drawScaledCard(card2Index, x2, y, 2);
+}
+
 void setup() {
-    // 1. Keep Pin 1 safe for Backlight
+    // Keep Pin 1 safe for Backlight
     // (You can try Serial.begin(115200) later, but let's get a clean image first)
     delay(500);
 
-    // 2. Turn on Backlight
+    // Turn on Backlight
     pinMode(TFT_BL, OUTPUT);
     digitalWrite(TFT_BL, HIGH);
 
-    // 3. Init Display
+    // Init Display
     if (!gfx->begin()) {
         // Init failed
     }
 
-    // 4. Fill Screen RED to check edges
-    // If the static is gone, the whole screen will be solid Red.
-    gfx->fillScreen(RED);
+    // Fill Screen with Table Green
+    gfx->fillScreen(TABLE_GREEN);
     
-    // 5. Draw Corner Markers
-    // This helps prove the alignment is perfect
-    gfx->setTextColor(WHITE);
-    gfx->setTextSize(2);
-    
-    // Top-Left
-    gfx->setCursor(0, 0);
-    gfx->print("TL");
-
-    // Bottom-Right
-    gfx->setCursor(215, 300);
-    gfx->print("BR");
-    
-    // Center Text
-    gfx->setTextSize(3);
-    gfx->setCursor(20, 150);
-    gfx->println("PERFECT!");
+   drawTwoCards(0, 13); // Example: Ace of Spades and Ace of Hearts
 }
 
 void loop() {
