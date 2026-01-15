@@ -13,7 +13,7 @@ void drawScaledCard(int cardIndex) {
   for (int row = 0; row < CARD_HEIGHT; row++) {
     for (int col = 0; col < CARD_WIDTH; col++) {
       // 1. Get the color from the array
-      uint16_t color = data[row * w + col];
+      uint16_t color = data[row * CARD_WIDTH + col];
 
       // 2. Draw a big square instead of a single dot
       tft.fillRect((col * scale), (row * scale), 5, 5, color);
@@ -42,7 +42,7 @@ void drawFiveCards(int flop1, int flop2, int flop3, int turn, int river) {
   };
 
   for (int i = 0; i < 5; i++) {
-    tft.pushImage(positions[i][0], positions[i][1], w, h, cards[i]);
+    tft.pushImage(positions[i][0], positions[i][1], CARD_WIDTH, CARD_HEIGHT, cards[i]);
   }
 }
 
