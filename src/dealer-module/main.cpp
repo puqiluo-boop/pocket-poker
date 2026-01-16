@@ -54,9 +54,6 @@ void drawDealerView() {
 
 // --- HELPER: SCALED DRAWING (Fixed for Arduino_GFX) ---
 void drawScaledCard(int cardIndex) {
-  // Arduino_GFX rotation is handled globally, usually you don't swap it per draw
-  // If you need to rotate just for this, use gfx->setRotation(2);
-  
   const uint16_t *data = deck[cardIndex];
   int scale = 5; 
 
@@ -68,7 +65,7 @@ void drawScaledCard(int cardIndex) {
   }
 }
 
-// --- HELPER: DRAW 5 CARDS (Fixed for Arduino_GFX) ---
+// --- HELPER: DRAW 5 CARDS ---
 void drawFiveCards(int flop1, int flop2, int flop3, int turn, int river) {
   // Clear screen with Green
   tableGfx->fillScreen(TABLE_GREEN);
