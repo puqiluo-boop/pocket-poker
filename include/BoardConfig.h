@@ -12,14 +12,15 @@
 #define TFT_DC    42
 #define TFT_RST   -1  // Tied to global reset
 
-// --- 1. TOUCH SETTINGS (From your working example) ---
+// Touch Controller (CST816)
 #define TOUCH_ADDR 0x15
-// Note: These should match the pins in your BoardConfig.h
-// If you haven't updated BoardConfig yet, we define them here to be safe:
 #define TOUCH_SDA 48
 #define TOUCH_SCL 47
-#define TOUCH_RST -1
-#define TOUCH_INT -1
+#define TOUCH_RST -1  // No separate reset pin
+#define TOUCH_INT 7
+
+// For BSP compatibility
+#define EXAMPLE_PIN_NUM_TP_RST TOUCH_RST
 
 // Power
 #define BOARD_BAT_ADC 1  // If you ever read battery level

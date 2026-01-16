@@ -1,10 +1,15 @@
 #include <Arduino.h>
 #include <Arduino_GFX_Library.h>
-#include <TouchDrv.h>
+#include <lvgl.h>
+#include "bsp_cst816.h"
 
 #include <BoardConfig.h>
 #include <Deck.h>
 #include <Colors.h>
+
+// Forward Declarations
+int* shuffleDeck();
+void drawFiveCards(int flop1, int flop2, int flop3, int turn, int river);
 
 // ============ Dealer Screen ==============
 Arduino_DataBus *bus1 = new Arduino_ESP32SPI(
@@ -18,6 +23,51 @@ Arduino_GFX *dealerGfx = new Arduino_ST7789(
     0, 0, 0, 0
 );
 
+// LVGL Buffers
+static lv_disp_draw_buf_t draw_buf; 
+
+// --- GLUE 1: DISPLAY FLUSH ---
+void my_disp_flush(lv_disp_drv_t *disp, const lv_area_t *area, lv_color_t *color_p) {
+    uint32_t w = (area->x2 - area->x1 + 1);
+    uint32_t h = (area->y2 - area->y1 + 1);
+    dealerGfx->draw16bitRGBBitmap(area->x1, area->y1, (uint16_t *)&color_p->full, w, h);
+    lv_disp_flush_ready(disp);
+}
+
+// --- GLUE 2: INPUT READ ---
+void my_touch_read(lv_indev_drv_t *indev_driver, lv_indev_data_t *data) {
+    uint16_t touchpad_x = 0;
+    uint16_t touchpad_y = 0;
+    
+    data->state = LV_INDEV_STATE_RELEASED;
+    
+    bsp_touch_read();
+    
+    if (bsp_touch_get_coordinates(&touchpad_x, &touchpad_y)) {
+        if (touchpad_x < 320 && touchpad_y < 240) {
+            data->point.x = touchpad_x;
+            data->point.y = touchpad_y;
+            data->state = LV_INDEV_STATE_PRESSED;
+        }
+    }
+}
+
+// --- UI CODE ---
+void create_ui() {
+    lv_obj_t *btn = lv_btn_create(lv_scr_act());
+    lv_obj_align(btn, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_set_size(btn, 140, 60);
+
+    lv_obj_t *label = lv_label_create(btn);
+    lv_label_set_text(label, "DEAL HAND");
+    lv_obj_center(label);
+
+    lv_obj_add_event_cb(btn, [](lv_event_t *e) {
+        int* newHand = shuffleDeck();
+        drawFiveCards(newHand[1], newHand[2], newHand[3], newHand[5], newHand[7]);
+    }, LV_EVENT_CLICKED, NULL);
+}
+
 // ============ Table Screen ==============
 #define EXT_SCK  13
 #define EXT_MOSI 11
@@ -30,68 +80,20 @@ Arduino_DataBus *bus2 = new Arduino_ESP32SPI(
     EXT_DC, EXT_CS, EXT_SCK, EXT_MOSI, EXT_MISO
 );
 
-// 4-inch screens are usually ILI9488 (480x320)
-// We use the "18bit" version because SPI often requires it for this chip
 Arduino_GFX *tableGfx = new Arduino_ILI9488_18bit(
     bus2, EXT_RST, 
     3 /* rotation */, false /* IPS */
 );
 
-// --- HELPERS ---
-void drawButton(bool pressed) {
-    uint16_t color = pressed ? BLUE : DARKGREY;
-    uint16_t textColor = pressed ? BLACK : WHITE;
-    
-    dealerGfx->fillRoundRect(40, 80, 160, 80, 10, color);
-    dealerGfx->drawRoundRect(40, 80, 160, 80, 10, WHITE);
-    
-    dealerGfx->setCursor(75, 110);
-    dealerGfx->setTextColor(textColor);
-    dealerGfx->setTextSize(2);
-    dealerGfx->println(pressed ? "DEALING..." : "DEAL NEW");
-}
-
-// --- HELPER: DRAW DEALER VIEW ---
-void drawDealerView() {
-    dealerGfx->fillScreen(BLACK);
-    
-    // Draw a "Button" to show where to touch
-    dealerGfx->fillRoundRect(40, 80, 160, 80, 10, DARKGREY);
-    dealerGfx->drawRoundRect(40, 80, 160, 80, 10, WHITE);
-    
-    dealerGfx->setCursor(75, 110);
-    dealerGfx->setTextColor(WHITE);
-    dealerGfx->setTextSize(2);
-    dealerGfx->println("DEAL NEW");
-    dealerGfx->setCursor(90, 130);
-    dealerGfx->println("HAND");
-}
-
-// --- HELPER: SCALED DRAWING (Fixed for Arduino_GFX) ---
-void drawScaledCard(int cardIndex) {
-  const uint16_t *data = deck[cardIndex];
-  int scale = 5; 
-
-  for (int row = 0; row < CARD_HEIGHT; row++) {
-    for (int col = 0; col < CARD_WIDTH; col++) {
-      uint16_t color = data[row * CARD_WIDTH + col];
-      tableGfx->fillRect((col * scale), (row * scale), 5, 5, color);
-    }
-  }
-}
-
 // --- HELPER: DRAW 5 CARDS ---
 void drawFiveCards(int flop1, int flop2, int flop3, int turn, int river) {
-  // Clear screen with Green
   tableGfx->fillScreen(TABLE_GREEN);
 
-  // Center the cards vertically: (Screen Height 360 - Card Height) / 2
   int yPos = (320 - CARD_HEIGHT) / 2; 
 
-  // Calculate spacing (adjust these X numbers to fit your screen width)
   int xPositions[5] = {
-    40,                     // Card 1 X
-    40 + (CARD_WIDTH + 20),  // Card 2 X (plus 5px gap)
+    40,
+    40 + (CARD_WIDTH + 20),
     40 + (2 * (CARD_WIDTH + 20)), 
     40 + (3 * (CARD_WIDTH + 20)), 
     40 + (4 * (CARD_WIDTH + 20)) 
@@ -102,7 +104,6 @@ void drawFiveCards(int flop1, int flop2, int flop3, int turn, int river) {
   };
 
   for (int i = 0; i < 5; i++) {
-    // TRANSLATION: tft.pushImage -> gfx->draw16bitRGBBitmap
     tableGfx->draw16bitRGBBitmap(xPositions[i], yPos, (uint16_t*)cards[i], CARD_WIDTH, CARD_HEIGHT);
   }
 }
@@ -124,41 +125,67 @@ int* shuffleDeck() {
 
 void setup() {
     Serial.begin(115200);
-    delay(1000); 
+    delay(1000);
 
-    // Init Touch
-    touch_init(TOUCH_SDA, TOUCH_SCL);
-    Serial.println("Touch Driver Started");
-
-    // Init Backlight
+    // 1. Init Hardware
     pinMode(TFT_BL, OUTPUT);
     digitalWrite(TFT_BL, HIGH);
 
-    // Init Screens
     dealerGfx->begin();
     dealerGfx->fillScreen(BLACK);
-    drawButton(false); 
 
-    tableGfx->begin();
-    tableGfx->fillScreen(TABLE_GREEN);
+    if(tableGfx) {
+        tableGfx->begin();
+        tableGfx->fillScreen(TABLE_GREEN);
+    }
+
+    // 2. Init Touch
+    Wire.begin(TOUCH_SDA, TOUCH_SCL);
+    if (!bsp_touch_init(&Wire, 3, 320, 240)) {
+        Serial.println("Warning: Touch initialization failed");
+    }
+
+    // 3. Init LVGL
+    lv_init();
+    
+    uint32_t bufSize = 320 * 240;
+    lv_color_t *disp_draw_buf = (lv_color_t *)heap_caps_malloc(bufSize * sizeof(lv_color_t), MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+    if (!disp_draw_buf) {
+        disp_draw_buf = (lv_color_t *)heap_caps_malloc(bufSize * sizeof(lv_color_t), MALLOC_CAP_8BIT);
+    }
+    
+    if (!disp_draw_buf) {
+        Serial.println("ERROR: LVGL buffer allocation failed!");
+        while(1);
+    }
+    
+    lv_disp_draw_buf_init(&draw_buf, disp_draw_buf, NULL, bufSize);
+
+    static lv_disp_drv_t disp_drv;
+    lv_disp_drv_init(&disp_drv);
+    disp_drv.hor_res = 320;
+    disp_drv.ver_res = 240;
+    disp_drv.flush_cb = my_disp_flush;
+    disp_drv.draw_buf = &draw_buf;
+    lv_disp_drv_register(&disp_drv);
+
+    static lv_indev_drv_t indev_drv;
+    lv_indev_drv_init(&indev_drv);
+    indev_drv.type = LV_INDEV_TYPE_POINTER;
+    indev_drv.read_cb = my_touch_read;
+    lv_indev_drv_register(&indev_drv);
+
+    create_ui();
+    
+    Serial.println("Setup complete - Ready to deal!");
 }
 
 void loop() {
-    int x = 0, y = 0;
-
-    // 1. Read Touch (Clean one-liner!)
-    if (touch_read(TOUCH_ADDR, &x, &y)) {
-        
-        Serial.printf("Touch: %d, %d\n", x, y);
-
-        if (x > 40 && x < 200 && y > 80 && y < 160) {
-            drawButton(true); 
-            int* newHand = shuffleDeck();
-            drawFiveCards(newHand[1], newHand[2], newHand[3], newHand[5], newHand[7]);
-            delay(200);
-            drawButton(false);
-            delay(500); 
-        }
-    }
-    delay(20); 
+    static uint32_t last_tick = 0;
+    uint32_t now = millis();
+    lv_tick_inc(now - last_tick);
+    last_tick = now;
+    
+    lv_timer_handler(); 
+    delay(5);
 }
