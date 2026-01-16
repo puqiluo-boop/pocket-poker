@@ -1,17 +1,10 @@
 #include <Arduino.h>
 #include <Arduino_GFX_Library.h>
-#include "../lib/Deck/Deck.h"
-#include "../lib/Deck/Trim.h"
-#include "../lib/Colors.h"
 
-// --- FINAL CONFIRMED PINOUT ---
-#define TFT_BL    1   
-#define TFT_MOSI 38   
-#define TFT_SCK  39   
-#define TFT_MISO 40   // (Not strictly needed for writing, but good to have)
-#define TFT_CS    45  // Found in Demo #2
-#define TFT_DC    42  // Found in Demo #2
-#define TFT_RST   -1  // Found in Demo #2 (Automatic Reset)
+#include <BoardConfig.h>
+#include <Colors.h>
+#include <Deck.h>
+#include <Trim.h>
 
 Arduino_DataBus *bus = new Arduino_ESP32SPI(
     TFT_DC, TFT_CS, TFT_SCK, TFT_MOSI, TFT_MISO
@@ -93,7 +86,7 @@ void setup() {
     // Fill Screen with Table Green
     gfx->fillScreen(TABLE_GREEN);
     
-   drawTwoCards(0, 13); // Example: Ace of Spades and Ace of Hearts
+   drawTwoCards(18, 19); // Example: Ace of Spades and Ace of Hearts
 }
 
 void loop() {
