@@ -1,13 +1,12 @@
 #include <Arduino.h>
 #include <Arduino_GFX_Library.h>
+#include <TouchDrv.h>
 
 #include <BoardConfig.h>
 #include <Deck.h>
 #include <Colors.h>
 
-// ==========================================
-// SCREEN 1: INTERNAL (Dealer View)
-// ==========================================
+// ============ Dealer Screen ==============
 Arduino_DataBus *bus1 = new Arduino_ESP32SPI(
     TFT_DC, TFT_CS, TFT_SCK, TFT_MOSI, TFT_MISO
 );
@@ -19,10 +18,7 @@ Arduino_GFX *dealerGfx = new Arduino_ST7789(
     0, 0, 0, 0
 );
 
-// ==========================================
-// SCREEN 2: EXTERNAL 4-INCH (Table View)
-// ==========================================
-// WIRING (Using the Right Header pins we discussed)
+// ============ Table Screen ==============
 #define EXT_SCK  13
 #define EXT_MOSI 11
 #define EXT_MISO 15
@@ -41,15 +37,34 @@ Arduino_GFX *tableGfx = new Arduino_ILI9488_18bit(
     3 /* rotation */, false /* IPS */
 );
 
+// --- HELPERS ---
+void drawButton(bool pressed) {
+    uint16_t color = pressed ? BLUE : DARKGREY;
+    uint16_t textColor = pressed ? BLACK : WHITE;
+    
+    dealerGfx->fillRoundRect(40, 80, 160, 80, 10, color);
+    dealerGfx->drawRoundRect(40, 80, 160, 80, 10, WHITE);
+    
+    dealerGfx->setCursor(75, 110);
+    dealerGfx->setTextColor(textColor);
+    dealerGfx->setTextSize(2);
+    dealerGfx->println(pressed ? "DEALING..." : "DEAL NEW");
+}
+
 // --- HELPER: DRAW DEALER VIEW ---
 void drawDealerView() {
     dealerGfx->fillScreen(BLACK);
-    dealerGfx->setCursor(10, 20);
+    
+    // Draw a "Button" to show where to touch
+    dealerGfx->fillRoundRect(40, 80, 160, 80, 10, DARKGREY);
+    dealerGfx->drawRoundRect(40, 80, 160, 80, 10, WHITE);
+    
+    dealerGfx->setCursor(75, 110);
     dealerGfx->setTextColor(WHITE);
-    dealerGfx->setTextSize(3);
-    dealerGfx->println("DEALER");
     dealerGfx->setTextSize(2);
-    dealerGfx->println("Waiting for bets...");
+    dealerGfx->println("DEAL NEW");
+    dealerGfx->setCursor(90, 130);
+    dealerGfx->println("HAND");
 }
 
 // --- HELPER: SCALED DRAWING (Fixed for Arduino_GFX) ---
@@ -108,45 +123,42 @@ int* shuffleDeck() {
 }
 
 void setup() {
-  // Start Serial FIRST so we don't miss errors
     Serial.begin(115200);
+    delay(1000); 
 
-  // *ESP32-S3 Specific Note:* // Since you have 'ARDUINO_USB_CDC_ON_BOOT=1' in your ini file,
-  // the USB connection takes a second to wake up. 
-  // Add a short delay if you want to see the very first "Hello" message.
-  delay(1000); 
-  Serial.println("Booting Dealer Module...");
+    // Init Touch
+    touch_init(TOUCH_SDA, TOUCH_SCL);
+    Serial.println("Touch Driver Started");
 
-  //Setup Backlights
-  pinMode(TFT_BL, OUTPUT);
-  digitalWrite(TFT_BL, HIGH);
-    
-  // Start Screen 1 (Dealer)
-  if (!dealerGfx->begin()) {
-      Serial.println("Dealer Screen Failed!");
-  }
-  dealerGfx->fillScreen(BLUE); // Flash Blue to prove it works
+    // Init Backlight
+    pinMode(TFT_BL, OUTPUT);
+    digitalWrite(TFT_BL, HIGH);
 
-  // Start Screen 2 (Table)
-  if (!tableGfx->begin()) {
-      Serial.println("Table Screen Failed!");
-  }
-  tableGfx->fillScreen(RED); // Flash Red to prove it works
+    // Init Screens
+    dealerGfx->begin();
+    dealerGfx->fillScreen(BLACK);
+    drawButton(false); 
 
-  delay(1000);
-
-  // 4. Draw Initial State
-  drawDealerView();
-  drawFiveCards(0, 1, 2, 3, 4); // Draw Ace, 2, 3, 4, 5 of Hearts
+    tableGfx->begin();
+    tableGfx->fillScreen(TABLE_GREEN);
 }
 
 void loop() {
-  static unsigned long lastSwitch = 0;
+    int x = 0, y = 0;
 
-  // Draw new hand every 5 seconds
-  if (millis() - lastSwitch >= 5000) {
-    int* shuffledDeck = shuffleDeck();
-    drawFiveCards(shuffledDeck[1], shuffledDeck[2], shuffledDeck[3], shuffledDeck[5], shuffledDeck[7]);
-    lastSwitch = millis();
-  }
+    // 1. Read Touch (Clean one-liner!)
+    if (touch_read(TOUCH_ADDR, &x, &y)) {
+        
+        Serial.printf("Touch: %d, %d\n", x, y);
+
+        if (x > 40 && x < 200 && y > 80 && y < 160) {
+            drawButton(true); 
+            int* newHand = shuffleDeck();
+            drawFiveCards(newHand[1], newHand[2], newHand[3], newHand[5], newHand[7]);
+            delay(200);
+            drawButton(false);
+            delay(500); 
+        }
+    }
+    delay(20); 
 }

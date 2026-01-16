@@ -12,11 +12,14 @@
 #define TFT_DC    42
 #define TFT_RST   -1  // Tied to global reset
 
-// Built-in Touch (I2C)
-#define TOUCH_SDA 8   // (EXAMPLE - verify if you use touch)
-#define TOUCH_SCL 9   // (EXAMPLE - verify if you use touch)
+// --- 1. TOUCH SETTINGS (From your working example) ---
+#define TOUCH_ADDR 0x15
+// Note: These should match the pins in your BoardConfig.h
+// If you haven't updated BoardConfig yet, we define them here to be safe:
+#define TOUCH_SDA 48
+#define TOUCH_SCL 47
 #define TOUCH_RST -1
-#define TOUCH_IRQ -1
+#define TOUCH_INT -1
 
 // Power
 #define BOARD_BAT_ADC 1  // If you ever read battery level
