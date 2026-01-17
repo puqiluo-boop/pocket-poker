@@ -87,24 +87,33 @@ Arduino_GFX *tableGfx = new Arduino_ILI9488_18bit(
 
 // --- HELPER: DRAW 5 CARDS ---
 void drawFiveCards(int flop1, int flop2, int flop3, int turn, int river) {
+  // Start fresh
   tableGfx->fillScreen(TABLE_GREEN);
-
+  delay(10); // Give screen time to clear
+  
+  // ILI9488 in rotation 3: 480 width x 320 height
   int yPos = (320 - CARD_HEIGHT) / 2; 
 
-  int xPositions[5] = {
-    40,
-    40 + (CARD_WIDTH + 20),
-    40 + (2 * (CARD_WIDTH + 20)), 
-    40 + (3 * (CARD_WIDTH + 20)), 
-    40 + (4 * (CARD_WIDTH + 20)) 
-  };
+  // Calculate spacing
+  int totalCardWidth = 5 * CARD_WIDTH;
+  int availableSpace = 480 - 80;
+  int totalGapWidth = availableSpace - totalCardWidth;
+  int gap = totalGapWidth / 4;
+  
+  int xPositions[5];
+  xPositions[0] = 40;
+  for (int i = 1; i < 5; i++) {
+    xPositions[i] = xPositions[i-1] + CARD_WIDTH + gap;
+  }
 
   const uint16_t* cards[5] = {
     deck[flop1], deck[flop2], deck[flop3], deck[turn], deck[river]
   };
 
+  // Draw each card with small delay
   for (int i = 0; i < 5; i++) {
     tableGfx->draw16bitRGBBitmap(xPositions[i], yPos, (uint16_t*)cards[i], CARD_WIDTH, CARD_HEIGHT);
+    delay(5); // Small delay between cards
   }
 }
 
