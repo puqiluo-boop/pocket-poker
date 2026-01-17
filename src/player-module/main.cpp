@@ -86,9 +86,8 @@ void setup() {
     // Fill Screen with Table Green
     gfx->fillScreen(TABLE_GREEN);
     
-   drawTwoCards(18, 19); // Example: Ace of Spades and Ace of Hearts
+   drawTwoCards(18, 19);
 }
 
 void loop() {
-    // Enjoy your victory
 }
