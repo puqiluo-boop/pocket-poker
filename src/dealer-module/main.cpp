@@ -7,7 +7,7 @@
 // Touchscreen Library
 #include <bsp_cst816.h>
 
-#include <Comms.h>
+#include <DealerComms.h>
 #include <BoardConfig.h>
 #include <Deck.h>
 #include <Colors.h>
@@ -69,7 +69,7 @@ void create_ui() {
 
     lv_obj_add_event_cb(btn, [](lv_event_t *e) {
         int* newHand = shuffleDeck();
-        sendCardsToPlayers(newHand);
+        broadcastCards(newHand);
         drawFiveCards(newHand[2], newHand[3], newHand[4], newHand[6], newHand[8]);
     }, LV_EVENT_CLICKED, NULL);
 }

@@ -5,7 +5,7 @@
 #include <Colors.h>
 #include <Deck.h>
 #include <Trim.h>
-#include <Comms.h>
+#include <PlayerComms.h>
 
 //=========== PLAYER ID ==============
 #define PLAYER_ID 1
@@ -128,7 +128,7 @@ void setup() {
         return;
     }
     
-    Serial.printf("MAC: %s\n", getMAC().c_str());
+    Serial.printf("MAC: %s\n", getPlayerMAC().c_str());
 }
 
 void loop() {
