@@ -1,30 +1,18 @@
 #include <Arduino.h>
 #include <Arduino_GFX_Library.h>
 
-#include <esp_now.h>
-#include <WiFi.h>
-
 #include <BoardConfig.h>
 #include <Colors.h>
 #include <Deck.h>
 #include <Trim.h>
+#include <Comms.h>
 
 //=========== PLAYER ID ==============
 #define PLAYER_ID 1
 //===================================
 
-typedef struct {
-    uint8_t playerID;
-    uint8_t card1;
-    uint8_t card2;
-} CardData;
-
-// ============ GAME STATE ==============
 // Store the current hand data received from dealer
 CardData currentHand;
-
-// Flag to track if we've received cards yet
-// WHY: So we can show "Waiting..." before cards arrive
 bool hasCards = false;
 
 Arduino_DataBus *bus = new Arduino_ESP32SPI(
@@ -108,35 +96,14 @@ void drawHoleCards() {
     drawTwoCards(currentHand.card1, currentHand.card2);
 }
 
-// ============ ESP-NOW RECEIVE CALLBACK ==============
-// This function is called AUTOMATICALLY whenever data arrives via ESP-NOW
-// PARAMETERS:
-// - mac: MAC address of sender (the dealer in this case)
-// - incomingData: Pointer to the received bytes
-// - len: How many bytes were received
-void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
-    // Create a temporary CardData structure
-    CardData receivedData;
+void onCardsReceived(CardData cards) {
+    currentHand = cards;
+    hasCards = true;
     
-    // Copy the incoming bytes into our structure
-    // WHY memcpy: The data arrives as raw bytes, we need to interpret them as CardData
-    memcpy(&receivedData, incomingData, sizeof(receivedData));
+    Serial.printf("Got cards: %d and %d\n", cards.card1, cards.card2);
     
-    // CHECK IF THIS MESSAGE IS FOR US:
-    // The dealer broadcasts to everyone, but each message has a playerID
-    // We only want to process messages meant for our PLAYER_ID
-    if (receivedData.playerID == PLAYER_ID) {
-        // This message is for us! Save it
-        currentHand = receivedData;
-        hasCards = true;
-        
-        Serial.printf("Got cards: %d and %d\n", currentHand.card1, currentHand.card2);
-        
-        // Update the screen to show our new cards
-        drawHoleCards();
-    }
-    // If receivedData.playerID != PLAYER_ID, we ignore this message
-    // (it's meant for a different player)
+    // Update display
+    drawHoleCards();
 }
 
 void setup() {
@@ -152,36 +119,19 @@ void setup() {
     gfx->begin();
     gfx->fillScreen(TABLE_GREEN);
     
-    // Show initial "Waiting..." screen
+    // Show initial waiting screen
     drawHoleCards();
     
-    // ============ 2. INIT ESP-NOW ==============
-    
-    // Put WiFi in Station mode (same reason as dealer)
-    WiFi.mode(WIFI_STA);
-    
-    // PRINT MAC ADDRESS:
-    // This is useful for debugging - you can see which device is which
-    // Each ESP32 has a unique MAC address (like a network fingerprint)
-    Serial.printf("MAC Address: %s\n", WiFi.macAddress().c_str());
-    
-    // Initialize ESP-NOW
-    if (esp_now_init() != ESP_OK) {
-        Serial.println("Error initializing ESP-NOW");
+    // Init ESP-NOW with our callback
+    if (!initPlayerComms(PLAYER_ID, onCardsReceived)) {
+        Serial.println("Communication setup failed!");
         return;
     }
     
-    // REGISTER RECEIVE CALLBACK:
-    // This tells ESP-NOW to call OnDataRecv() whenever data arrives
-    // WHY: Unlike the dealer who only sends, players need to receive
-    esp_now_register_recv_cb(OnDataRecv);
-    
-    Serial.println("Listening for cards...");
+    Serial.printf("MAC: %s\n", getMAC().c_str());
 }
 
 void loop() {
-    // Players don't need to do anything in loop!
-    // ESP-NOW handles everything via the OnDataRecv callback
-    // When data arrives, OnDataRecv is called automatically
+    // ESP-NOW handles everything via callbacks
     delay(10);
 }

@@ -7,10 +7,7 @@
 // Touchscreen Library
 #include <bsp_cst816.h>
 
-// Networking Libraries
-#include <esp_now.h>
-#include <WiFi.h>
-
+#include <Comms.h>
 #include <BoardConfig.h>
 #include <Deck.h>
 #include <Colors.h>
@@ -18,22 +15,6 @@
 // Forward Declarations
 int* shuffleDeck();
 void drawFiveCards(int flop1, int flop2, int flop3, int turn, int river);
-void sendCardsToPlayers(int* deck);
-
-// ============ ESP-NOW DATA STRUCTURE ==============
-// This defines what data we're sending to players.
-// IMPORTANT: Both dealer and player must have THE EXACT SAME structure
-// or they won't be able to decode each other's messages.
-typedef struct {
-    uint8_t playerID;           // Which player this is for (1-6)
-    uint8_t card1;              // First hole card (index into deck array)
-    uint8_t card2;              // Second hole card
-} CardData;
-
-// BROADCAST ADDRESS:
-// FF:FF:FF:FF:FF:FF is a special MAC address that means "send to everyone"
-// This way we don't need to know each player's unique MAC address
-uint8_t broadcastAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
 // ============ Dealer Screen ==============
 Arduino_DataBus *bus1 = new Arduino_ESP32SPI(
@@ -157,50 +138,6 @@ int* shuffleDeck() {
   return deckOrder;
 }
 
-// ============ ESP-NOW FUNCTIONS ==============
-
-// CALLBACK: This function is called automatically AFTER we send data
-// It tells us if the transmission was successful or failed
-// WHY: Helps with debugging - if sends are failing, we know there's a range/interference issue
-void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
-    // status is either ESP_NOW_SEND_SUCCESS or ESP_NOW_SEND_FAIL
-    Serial.printf("Send Status: %s\n", status == ESP_NOW_SEND_SUCCESS ? "Success" : "Fail");
-}
-
-// SEND CARDS TO PLAYERS
-// This loops through 6 players and sends each their hole cards
-void sendCardsToPlayers(int* deckOrder) {
-    // Loop through 6 players (you can change this to however many you have)
-    for (int player = 0; player < 1; player++) {
-        // Create a CardData packet for this specific player
-        CardData data;
-        
-        // Set which player this is for (1-6, not 0-5, so add 1)
-        data.playerID = player + 1;
-        
-        // CARD DISTRIBUTION:
-        data.card1 = deckOrder[0 + (player * 2)];
-        data.card2 = deckOrder[1 + (player * 2)];
-        
-        // SEND THE DATA:
-        // esp_now_send takes 3 parameters:
-        // 1. MAC address to send to (broadcastAddress = everyone)
-        // 2. Pointer to the data (we cast our struct to uint8_t*)
-        // 3. Size of the data in bytes
-        esp_err_t result = esp_now_send(broadcastAddress, (uint8_t*)&data, sizeof(data));
-        
-        // Check if send was successful
-        if (result == ESP_OK) {
-            Serial.printf("Sent to Player %d\n", player + 1);
-        } else {
-            Serial.printf("Error sending to Player %d\n", player + 1);
-        }
-        
-        // Small delay between sends to avoid overwhelming the radio
-        delay(10);
-    }
-}
-
 void setup() {
     Serial.begin(115200);
     delay(1000);
@@ -223,49 +160,11 @@ void setup() {
         Serial.println("Warning: Touch initialization failed");
     }
 
-    // ============ 3. INIT ESP-NOW ==============
-    
-    // WHY WIFI_STA MODE:
-    // ESP-NOW requires the WiFi radio to be on, but in "Station" mode
-    // This does NOT connect to any WiFi network - it just turns on the radio
-    // Think of it like turning on Bluetooth without connecting to a device
-    WiFi.mode(WIFI_STA);
-    
-    // INITIALIZE ESP-NOW:
-    // This starts the ESP-NOW protocol on this device
-    // Returns ESP_OK if successful
-    if (esp_now_init() != ESP_OK) {
-        Serial.println("Error initializing ESP-NOW");
-        return; // Stop setup if this fails
-    }
-    
-    // REGISTER SEND CALLBACK:
-    // This tells ESP-NOW to call OnDataSent() whenever we finish sending data
-    // Useful for debugging and knowing if messages got through
-    esp_now_register_send_cb(OnDataSent);
-    
-    // ADD BROADCAST PEER:
-    // A "peer" is another device we can communicate with
-    // We need to register the broadcast address as a peer before we can send to it
-    esp_now_peer_info_t peerInfo = {}; // Create empty peer info struct
-    
-    // Copy broadcast address into peer info
-    memcpy(peerInfo.peer_addr, broadcastAddress, 6); // MAC addresses are 6 bytes
-    
-    // Channel 0 = auto-select channel (use whatever WiFi channel we're on)
-    peerInfo.channel = 0;
-    
-    // encrypt = false means no encryption (faster, but less secure)
-    // For a poker game, speed matters more than security
-    peerInfo.encrypt = false;
-    
-    // Register this peer with ESP-NOW
-    if (esp_now_add_peer(&peerInfo) != ESP_OK) {
-        Serial.println("Failed to add peer");
+    // 3. Init ESP-NOW
+    if (!initDealerComms()) {
+        Serial.println("Communication setup failed!");
         return;
     }
-    
-    Serial.println("ESP-NOW Ready!");
 
     // 4. Init LVGL (unchanged)
     lv_init();
