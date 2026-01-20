@@ -5,7 +5,9 @@
 #include <Colors.h>
 #include <Deck.h>
 #include <Trim.h>
+
 #include <PlayerComms.h>
+#include <Structs.h>
 
 //=========== PLAYER ID ==============
 #define PLAYER_ID 1

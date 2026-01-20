@@ -8,6 +8,8 @@
 #include <bsp_cst816.h>
 
 #include <DealerComms.h>
+#include <Structs.h>
+
 #include <BoardConfig.h>
 #include <Deck.h>
 #include <Colors.h>
