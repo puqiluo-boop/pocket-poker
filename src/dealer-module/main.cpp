@@ -14,9 +14,12 @@
 #include <Deck.h>
 #include <Colors.h>
 
+#include <PlayerRegistry.h>
+
 // Forward Declarations
 int* shuffleDeck();
 void drawFiveCards(int flop1, int flop2, int flop3, int turn, int river);
+void handlePlayerConnection(ConnectionCheck cc);
 
 // ============ Dealer Screen ==============
 Arduino_DataBus *bus1 = new Arduino_ESP32SPI(
@@ -140,6 +143,13 @@ int* shuffleDeck() {
   return deckOrder;
 }
 
+PlayerRegistry playerRegistry;
+
+void handlePlayerConnection(ConnectionCheck cc) {
+    playerRegistry.registerPlayer(cc.senderID, String("Player ") + cc.senderID);
+    playerRegistry.updateLastSeen(cc.senderID);
+}
+
 void setup() {
     Serial.begin(115200);
     delay(1000);
@@ -163,7 +173,7 @@ void setup() {
     }
 
     // 3. Init ESP-NOW
-    if (!initDealerComms()) {
+    if (!initDealerComms(handlePlayerConnection)) {
         Serial.println("Communication setup failed!");
         return;
     }
@@ -201,6 +211,12 @@ void setup() {
     create_ui();
     
     Serial.println("Dealer ready!");
+
+    playerRegistry.clearAll();
+    delay(1000);
+    broadcastConnectionCheck();
+    delay(1000);
+    playerRegistry.printConnected();
 }
 
 void loop() {

@@ -5,28 +5,53 @@
 
 // ============ INTERNAL STATE ==============
 
+// Broadcast MAC address (FF:FF:FF:FF:FF:FF = send to everyone)
+static uint8_t broadcastAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+
 // Which player this device is
 static uint8_t thisPlayerID = 0;
 
 // Callback function to call when cards arrive
 static void (*cardReceivedCallback)(CardData) = nullptr;
 
+static void confirmConnection();
+
 // ============ CALLBACKS ==============
 
-// Called when data arrives via ESP-NOW
 static void onDataReceived(const uint8_t *mac, const uint8_t *data, int len) {
-    // Parse incoming bytes as CardData
-    CardData receivedData;
-    memcpy(&receivedData, data, sizeof(receivedData));
-    
-    // Only process if this message is for our player ID
-    if (receivedData.playerID == thisPlayerID) {
-        // Call the user's callback function
-        if (cardReceivedCallback != nullptr) {
-            cardReceivedCallback(receivedData);
+    uint8_t msgType = data[0];
+
+    switch (msgType) {
+        case MSG_CONNECTION_CHECK: {
+            ConnectionCheck receivedData;
+            memcpy(&receivedData, data, sizeof(receivedData));
+
+            if (receivedData.senderID == 0) {
+                confirmConnection();
+            }
+            return;
+        }
+        case MSG_CARD_DATA: {
+            CardData receivedData;
+            memcpy(&receivedData, data, sizeof(receivedData));
+        
+            if (receivedData.playerID == thisPlayerID) {
+                if (cardReceivedCallback != nullptr) {
+                    cardReceivedCallback(receivedData);
+                }
+            }
+            return;
+        }
+        default: {
+            return;
         }
     }
-    // Otherwise ignore (message is for a different player)
+}
+
+static void onSendComplete(const uint8_t *mac_addr, esp_now_send_status_t status) {
+    if (status != ESP_NOW_SEND_SUCCESS) {
+        Serial.println("Send failed!");
+    }
 }
 
 // ============ PUBLIC FUNCTIONS ==============
@@ -47,11 +72,35 @@ bool initPlayerComms(uint8_t playerID, void (*onCardsReceived)(CardData)) {
     
     // Step 3: Register callback for when data arrives
     esp_now_register_recv_cb(onDataReceived);
+    esp_now_register_send_cb(onSendComplete);
+
+     esp_now_peer_info_t peerInfo = {};
+    memcpy(peerInfo.peer_addr, broadcastAddress, 6);
+    peerInfo.channel = 0;       // Auto-select channel
+    peerInfo.encrypt = false;   // No encryption (faster)
     
+    if (esp_now_add_peer(&peerInfo) != ESP_OK) {
+        Serial.println("Failed to add broadcast peer");
+        return false;
+    }
+
     Serial.printf("Player %d listening for cards...\n", playerID);
     return true;
 }
 
 String getPlayerMAC() {
     return WiFi.macAddress();
+}
+
+void confirmConnection() {
+    ConnectionCheck packet;
+    packet.msgType = MSG_CONNECTION_CHECK;
+    packet.senderID = thisPlayerID;
+
+    esp_err_t result = esp_now_send(broadcastAddress, (uint8_t*)&packet, sizeof(packet));
+    if (result != ESP_OK) {
+        Serial.println("Failed to send connection confirmation");
+    } else {
+        Serial.println("Connection confirmation sent");
+    }
 }

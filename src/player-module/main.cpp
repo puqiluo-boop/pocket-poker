@@ -134,6 +134,5 @@ void setup() {
 }
 
 void loop() {
-    // ESP-NOW handles everything via callbacks
     delay(10);
 }
