@@ -21,6 +21,8 @@ int* shuffleDeck();
 void drawFiveCards(int flop1, int flop2, int flop3, int turn, int river);
 void handlePlayerConnection(ConnectionCheck cc);
 
+PlayerRegistry playerRegistry;
+
 // ============ Dealer Screen ==============
 Arduino_DataBus *bus1 = new Arduino_ESP32SPI(
     TFT_DC, TFT_CS, TFT_SCK, TFT_MOSI, TFT_MISO
@@ -74,8 +76,9 @@ void create_ui() {
 
     lv_obj_add_event_cb(btn, [](lv_event_t *e) {
         int* newHand = shuffleDeck();
-        broadcastCards(newHand);
-        drawFiveCards(newHand[2], newHand[3], newHand[4], newHand[6], newHand[8]);
+        int playerCount = playerRegistry.getConnectedCount();
+        broadcastCards(newHand, playerCount);
+        drawFiveCards(newHand[2*playerCount+1], newHand[2*playerCount+2], newHand[2*playerCount+3], newHand[2*playerCount+5], newHand[2*playerCount+7]);
     }, LV_EVENT_CLICKED, NULL);
 }
 
@@ -142,8 +145,6 @@ int* shuffleDeck() {
   }
   return deckOrder;
 }
-
-PlayerRegistry playerRegistry;
 
 void handlePlayerConnection(ConnectionCheck cc) {
     playerRegistry.registerPlayer(cc.senderID, String("Player ") + cc.senderID);

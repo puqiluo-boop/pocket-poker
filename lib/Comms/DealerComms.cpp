@@ -74,9 +74,9 @@ bool initDealerComms(void (*onSuccessfulConnection)(ConnectionCheck)) {
     return true;
 }
 
-void broadcastCards(int* deckOrder) {
+void broadcastCards(int* deckOrder, int playerCount) {
     // Send cards to 6 players
-    for (int player = 0; player < 6; player++) {
+    for (int player = 0; player < playerCount; player++) {
         CardData packet;
         
         packet.msgType = MSG_CARD_DATA;
@@ -84,8 +84,8 @@ void broadcastCards(int* deckOrder) {
         // Player numbering: 1-6 (not 0-5)
         packet.playerID = player + 1;
         
-        packet.card1 = deckOrder[0 + (player * 2)];
-        packet.card2 = deckOrder[1 + (player * 2)];
+        packet.card1 = deckOrder[0 + player];
+        packet.card2 = deckOrder[playerCount + player];
         
         // Broadcast this packet
         esp_err_t result = esp_now_send(broadcastAddress, (uint8_t*)&packet, sizeof(packet));
