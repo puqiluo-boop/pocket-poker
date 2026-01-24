@@ -131,6 +131,24 @@ void drawFiveCards(int flop1, int flop2, int flop3, int turn, int river) {
   }
 }
 
+void drawLargeCard(int cardIndex) {
+    const uint16_t* cardData = deck[cardIndex];
+    int w = 64;  // Width of the original image
+    int h = 96;  // Height of the original image
+    int scale = 5; // Scale factor
+    for (int row = 0; row < h; row++) {
+        for (int col = 0; col < w; col++) {
+        // 1. Get the color from the array
+        // Note: Some converters use uint8_t (bytes), so we might need to combine them.
+        // If your array is 'uint16_t', use this:
+        uint16_t color = cardData[row * w + col];
+
+        // 2. Draw a big square instead of a single dot
+        tableGfx->fillRect((row * scale), (col * scale), 5, 5, color);
+        }
+    }
+}
+
 int* shuffleDeck() {
   static int deckOrder[52];
   for (int i = 0; i < 52; i++) {
@@ -164,7 +182,8 @@ void setup() {
 
     if(tableGfx) {
         tableGfx->begin();
-        tableGfx->fillScreen(TABLE_GREEN);
+        //tableGfx->fillScreen(TABLE_GREEN);
+        drawLargeCard(0);
     }
 
     // 2. Init Touch
