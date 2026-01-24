@@ -96,7 +96,7 @@ Arduino_DataBus *bus2 = new Arduino_ESP32SPI(
 
 Arduino_GFX *tableGfx = new Arduino_ILI9488_18bit(
     bus2, EXT_RST, 
-    3 /* rotation */, false /* IPS */
+    1 /* rotation */, true /* IPS */
 );
 
 // --- HELPER: DRAW 5 CARDS ---
