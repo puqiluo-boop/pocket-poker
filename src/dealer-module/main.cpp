@@ -169,9 +169,11 @@ void handlePlayerConnection(ConnectionCheck cc) {
     playerRegistry.updateLastSeen(cc.senderID);
 }
 
+
 void setup() {
     Serial.begin(115200);
-    delay(1000);
+    delay(5000);
+    Serial.println("Starting Dealer Setup...");
 
     // 1. Init Hardware (displays)
     pinMode(TFT_BL, OUTPUT);
