@@ -22,7 +22,6 @@ extern "C" {
 
 CardData currentHand;
 bool hasCards = false;
-volatile bool newCardsReceived = false;  // NEW: Flag for pending cards
 
 Arduino_DataBus *bus = new Arduino_ESP32SPI(
     TFT_DC, TFT_CS, TFT_SCK, TFT_MOSI, TFT_MISO
@@ -141,7 +140,7 @@ void onCardsReceived(CardData cards) {
     
     currentHand = cards;           // Copy data
     hasCards = true;               // Mark as valid
-    newCardsReceived = true;       // NEW: Set flag for main loop
+    drawTwoCards(currentHand.card1, currentHand.card2);
 }
 
 void setup() {
@@ -195,13 +194,7 @@ void setup() {
     Serial.printf("MAC: %s\n", getPlayerMAC().c_str());
 }
 
-void loop() {
-    // Check if we have new cards to draw
-    if (newCardsReceived) {
-        newCardsReceived = false;  // Clear flag immediately
-        drawTwoCards(currentHand.card1, currentHand.card2);  // Now safe!
-    }
-    
+void loop() { 
     // LVGL Timer Management
     lv_timer_handler(); 
     delay(5);
