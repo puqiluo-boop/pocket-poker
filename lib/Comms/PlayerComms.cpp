@@ -19,30 +19,44 @@ static void confirmConnection();
 // ============ CALLBACKS ==============
 
 static void onDataReceived(const uint8_t *mac, const uint8_t *data, int len) {
+    Serial.println(">>> ESP-NOW DATA RECEIVED <<<");  // NEW
+    Serial.printf("Length: %d bytes\n", len);          // NEW
+    
     uint8_t msgType = data[0];
-
+    Serial.printf("Message Type: %d\n", msgType);      // NEW
+    
     switch (msgType) {
         case MSG_CONNECTION_CHECK: {
+            Serial.println("-> Connection check message");  // NEW
             ConnectionCheck receivedData;
             memcpy(&receivedData, data, sizeof(receivedData));
-
             if (receivedData.senderID == 0) {
                 confirmConnection();
             }
             return;
         }
         case MSG_CARD_DATA: {
+            Serial.println("-> Card data message");         // NEW
             CardData receivedData;
             memcpy(&receivedData, data, sizeof(receivedData));
+            
+            Serial.printf("Target player: %d, This player: %d\n",   // NEW
+                         receivedData.playerID, thisPlayerID);
         
             if (receivedData.playerID == thisPlayerID) {
+                Serial.println("-> Match! Calling callback");        // NEW
                 if (cardReceivedCallback != nullptr) {
                     cardReceivedCallback(receivedData);
+                } else {
+                    Serial.println("-> ERROR: Callback is NULL!");   // NEW
                 }
+            } else {
+                Serial.println("-> Player ID mismatch, ignoring");   // NEW
             }
             return;
         }
         default: {
+            Serial.printf("-> Unknown message type: %d\n", msgType);  // NEW
             return;
         }
     }

@@ -158,7 +158,6 @@ void ui_Screen1_screen_init(void)
     lv_obj_set_y(ui_TextArea1, 113);
     lv_textarea_set_placeholder_text(ui_TextArea1, "Placeholder...");
     lv_textarea_set_password_mode(ui_TextArea1, true);
-
 }
 
 void ui_Screen1_screen_destroy(void)
@@ -178,5 +177,4 @@ void ui_Screen1_screen_destroy(void)
     ui_Button4 = NULL;
     ui_Label4 = NULL;
     ui_TextArea1 = NULL;
-
 }

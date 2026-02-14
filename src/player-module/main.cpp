@@ -22,6 +22,7 @@ extern "C" {
 
 CardData currentHand;
 bool hasCards = false;
+volatile bool newCardsReceived = false;  // NEW: Flag for pending cards
 
 Arduino_DataBus *bus = new Arduino_ESP32SPI(
     TFT_DC, TFT_CS, TFT_SCK, TFT_MOSI, TFT_MISO
@@ -60,32 +61,92 @@ void my_touch_read(lv_indev_drv_t *indev_driver, lv_indev_data_t *data) {
     uint16_t touchpad_x = 0;
     uint16_t touchpad_y = 0;
     
+    // --- CALIBRATION SETTINGS ---
+    // If touch is too low (cursor is below finger), use a NEGATIVE y_offset to move it up.
+    // If touch is too high (cursor is above finger), use a POSITIVE y_offset to move it down.
+    const int X_OFFSET = 0;  
+    const int Y_OFFSET = -20; // Start with -20 if it registers "lower" than your finger
+    
+    // Set to true to see coordinates in Serial Monitor
+    const bool DEBUG_TOUCH = true; 
+    // ---------------------------
+
     data->state = LV_INDEV_STATE_RELEASED;
     
     bsp_touch_read();
     
     if (bsp_touch_get_coordinates(&touchpad_x, &touchpad_y)) {
-        // Ensure coordinates are within bounds
-        if (touchpad_x < SCREEN_WIDTH && touchpad_y < SCREEN_HEIGHT) {
-            data->point.x = touchpad_x;
-            data->point.y = touchpad_y;
-            data->state = LV_INDEV_STATE_PRESSED;
+        
+        // 1. Apply Calibration Offsets
+        int cal_x = touchpad_x + X_OFFSET;
+        int cal_y = touchpad_y + Y_OFFSET;
+
+        // 2. Clamp values to screen edges (prevents crashing if offset pushes it < 0)
+        if(cal_x < 0) cal_x = 0;
+        if(cal_y < 0) cal_y = 0;
+        if(cal_x > SCREEN_WIDTH - 1) cal_x = SCREEN_WIDTH - 1;
+        if(cal_y > SCREEN_HEIGHT - 1) cal_y = SCREEN_HEIGHT - 1;
+
+        // 3. Debugging (View in Serial Monitor)
+        if (DEBUG_TOUCH) {
+            Serial.printf("Raw: (%d, %d) -> Calibrated: (%d, %d)\n", 
+                          touchpad_x, touchpad_y, cal_x, cal_y);
+        }
+
+        data->point.x = cal_x;
+        data->point.y = cal_y;
+        data->state = LV_INDEV_STATE_PRESSED;
+    }
+}
+
+bool shouldSkipPixel(int row, int col, int scale) {
+    for (int i = 0; i < 24; i++) {
+        if (trim[i][0] == row && trim[i][1] == col) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void drawScaledCard(int cardIndex, int x, int y, int scale) {
+    for (int row = 0; row < CARD_HEIGHT; row++) {
+        for (int col = 0; col < CARD_WIDTH; col++) {
+            if (shouldSkipPixel(row, col, scale)) {
+                continue; // Skip this pixel
+            }
+
+            // Get the color from the array
+            uint16_t color = deck[cardIndex][row * CARD_WIDTH + col];
+
+            // Draw a big square instead of a single dot
+            gfx->fillRect(x + (col * scale), y + (row * scale), scale, scale, color);
         }
     }
 }
 
-// ... [Keep your helper functions: shouldSkipPixel, drawScaledCard, etc.] ...
+void drawTwoCards(int card1Index, int card2Index) {
+    int y = 10;
+    int x1 = 16;
+    int x2 = 90;
+    drawScaledCard(card1Index, x1, y, 1);
+    drawScaledCard(card2Index, x2, y, 1);
+}
 
 void onCardsReceived(CardData cards) {
-    currentHand = cards;
-    hasCards = true;
-    Serial.printf("Got cards: %d and %d\n", cards.card1, cards.card2);
-    // Note: You might need to update a UI Label here instead of raw drawing
+    Serial.println("====== CARDS RECEIVED ======");
+    Serial.printf("Player ID: %d\n", cards.playerID);
+    Serial.printf("Card 1: %d\n", cards.card1);
+    Serial.printf("Card 2: %d\n", cards.card2);
+    Serial.println("===========================");
+    
+    currentHand = cards;           // Copy data
+    hasCards = true;               // Mark as valid
+    newCardsReceived = true;       // NEW: Set flag for main loop
 }
 
 void setup() {
     Serial.begin(115200);
-    // delay(1000); // Optional
+    delay(1000);
     
     Serial.printf("Player %d starting...\n", PLAYER_ID);
     
@@ -125,7 +186,7 @@ void setup() {
     // 7. Init Comms
     if (!initPlayerComms(PLAYER_ID, onCardsReceived)) {
         Serial.println("Communication setup failed!");
-        // Don't return, let UI load anyway
+        return;
     }
     
     // 8. Init SquareLine UI
@@ -135,13 +196,16 @@ void setup() {
 }
 
 void loop() {
+    // Check if we have new cards to draw
+    if (newCardsReceived) {
+        newCardsReceived = false;  // Clear flag immediately
+        drawTwoCards(currentHand.card1, currentHand.card2);  // Now safe!
+    }
+    
     // LVGL Timer Management
     lv_timer_handler(); 
     delay(5);
     
-    // Keep tick increment generic (using built-in millis)
-    // You don't strictly need manual tick_inc if you use lv_conf.h correctly,
-    // but if you do use it, it looks like this:
     static uint32_t last_tick = 0;
     uint32_t now = millis();
     if (now > last_tick) {

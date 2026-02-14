@@ -77,7 +77,7 @@
 // ==========================================
 // Uses PascalCase variable names (e.g. AceSpades)
 
-const uint16_t* deck[52] = {
+const uint16_t* deck[53] = {
     // Spades (0-12)
     AceSpades, TwoSpades, ThreeSpades, FourSpades, FiveSpades, 
     SixSpades, SevenSpades, EightSpades, NineSpades, TenSpades, 
@@ -96,7 +96,8 @@ const uint16_t* deck[52] = {
     // Diamonds (39-51)
     AceDiamonds, TwoDiamonds, ThreeDiamonds, FourDiamonds, FiveDiamonds, 
     SixDiamonds, SevenDiamonds, EightDiamonds, NineDiamonds, TenDiamonds, 
-    JackDiamonds, QueenDiamonds, KingDiamonds
+    JackDiamonds, QueenDiamonds, KingDiamonds,
 
-    // Note: Backside is not included in the main deck
+    // Backside (52)
+    Backside
 };
