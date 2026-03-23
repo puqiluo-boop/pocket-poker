@@ -118,3 +118,25 @@ void confirmConnection() {
         Serial.println("Connection confirmation sent");
     }
 }
+
+void sendPlayerAction(uint8_t playerID, uint32_t betSize) {
+    // Create the action packet
+    PlayerAction packet;
+    packet.msgType = MSG_PLAYER_ACTION;  // Tell dealer this is an action
+    packet.playerID = playerID;          // Who is acting
+    packet.betSize = betSize;            // How much (0 for fold/check)
+    
+    // Send it via broadcast (dealer will receive it)
+    esp_err_t result = esp_now_send(
+        broadcastAddress,           // Send to everyone (dealer listens)
+        (uint8_t*)&packet,          // Cast our struct to bytes
+        sizeof(packet)              // Send the whole struct
+    );
+    
+    // Debug output
+    if (result != ESP_OK) {
+        Serial.println("Failed to send player action");
+    } else {
+        Serial.printf("Action sent: Player %d, Bet %d\n", playerID, betSize);
+    }
+}

@@ -8,7 +8,7 @@
 #include <Trim.h>
 
 #include <PlayerComms.h>
-#include <Structs.h>
+#include "Structs.h"
 
 extern "C" {
     #include "ui/ui.h"
@@ -20,8 +20,158 @@ extern "C" {
 #define SCREEN_WIDTH 320
 #define SCREEN_HEIGHT 240
 
-CardData currentHand;
-bool hasCards = false;
+// ============ UI STATE MANAGEMENT ==============
+// This tracks what mode the buttons are in
+enum ButtonState {
+    STATE_NORMAL,          // All buttons show their regular text
+    STATE_CONFIRMING_FOLD, // Fold shows "Confirm", others show "Cancel"
+    STATE_CONFIRMING_CHECK,
+    STATE_CONFIRMING_CALL,
+    STATE_CONFIRMING_BET
+};
+
+ButtonState currentButtonState = STATE_NORMAL;
+
+// Forward declarations (tell compiler these functions exist)
+void setButtonsToNormal();
+void setButtonsToConfirm(ButtonState confirmingAction);
+
+CardData g_currentHand;
+bool g_hasCards = false;
+
+// ============ UI HELPER FUNCTIONS ==============
+
+// Reset all buttons to their original text and colors
+void setButtonsToNormal() {
+    currentButtonState = STATE_NORMAL;
+    
+    // Button 1: FOLD (red)
+    lv_label_set_text(ui_Label1, "FOLD");
+    lv_obj_set_style_bg_color(ui_Button1, lv_color_hex(0xFF3434), LV_PART_MAIN | LV_STATE_DEFAULT);
+    
+    // Button 2: CHECK (white)
+    lv_label_set_text(ui_Label2, "CHECK");
+    lv_obj_set_style_bg_color(ui_Button2, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
+    
+    // Button 3: CALL (gray)
+    lv_label_set_text(ui_Label3, "CALL");
+    lv_obj_set_style_bg_color(ui_Button3, lv_color_hex(0x959595), LV_PART_MAIN | LV_STATE_DEFAULT);
+    
+    // Button 4: BET (green)
+    lv_label_set_text(ui_Label4, "BET");
+    lv_obj_set_style_bg_color(ui_Button4, lv_color_hex(0x00B706), LV_PART_MAIN | LV_STATE_DEFAULT);
+}
+
+// Change one button to "Confirm" and all others to "Cancel"
+void setButtonsToConfirm(ButtonState confirmingAction) {
+    currentButtonState = confirmingAction;
+    
+    // Make all buttons orange "Cancel" first
+    lv_obj_set_style_bg_color(ui_Button1, lv_color_hex(0xFF8C00), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_color(ui_Button2, lv_color_hex(0xFF8C00), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_color(ui_Button3, lv_color_hex(0xFF8C00), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_color(ui_Button4, lv_color_hex(0xFF8C00), LV_PART_MAIN | LV_STATE_DEFAULT);
+    
+    lv_label_set_text(ui_Label1, "CANCEL");
+    lv_label_set_text(ui_Label2, "CANCEL");
+    lv_label_set_text(ui_Label3, "CANCEL");
+    lv_label_set_text(ui_Label4, "CANCEL");
+    
+    // Then override the ONE button that's confirming
+    switch (confirmingAction) {
+        case STATE_CONFIRMING_FOLD:
+            lv_label_set_text(ui_Label1, "CONFIRM");
+            lv_obj_set_style_bg_color(ui_Button1, lv_color_hex(0x00FF00), LV_PART_MAIN | LV_STATE_DEFAULT);
+            break;
+        case STATE_CONFIRMING_CHECK:
+            lv_label_set_text(ui_Label2, "CONFIRM");
+            lv_obj_set_style_bg_color(ui_Button2, lv_color_hex(0x00FF00), LV_PART_MAIN | LV_STATE_DEFAULT);
+            break;
+        case STATE_CONFIRMING_CALL:
+            lv_label_set_text(ui_Label3, "CONFIRM");
+            lv_obj_set_style_bg_color(ui_Button3, lv_color_hex(0x00FF00), LV_PART_MAIN | LV_STATE_DEFAULT);
+            break;
+        case STATE_CONFIRMING_BET:
+            lv_label_set_text(ui_Label4, "CONFIRM");
+            lv_obj_set_style_bg_color(ui_Button4, lv_color_hex(0x00FF00), LV_PART_MAIN | LV_STATE_DEFAULT);
+            break;
+        default:
+            break;
+    }
+}
+
+// ============ BUTTON EVENT HANDLERS ==============
+
+// Called when Button 1 (FOLD) is clicked
+void onButton1Clicked(lv_event_t * e) {
+    if (currentButtonState == STATE_NORMAL) {
+        // First click: Enter confirm mode
+        Serial.println("Fold pressed - waiting for confirmation");
+        setButtonsToConfirm(STATE_CONFIRMING_FOLD);
+        
+    } else if (currentButtonState == STATE_CONFIRMING_FOLD) {
+        // Second click on same button: CONFIRM the action
+        Serial.println("Fold confirmed! Sending action...");
+        sendPlayerAction(PLAYER_ID, 0);  // betSize = 0 for fold
+        setButtonsToNormal();
+        
+    } else {
+        // Click on a different button: CANCEL
+        Serial.println("Action cancelled");
+        setButtonsToNormal();
+    }
+}
+
+// Called when Button 2 (CHECK) is clicked
+void onButton2Clicked(lv_event_t * e) {
+    if (currentButtonState == STATE_NORMAL) {
+        Serial.println("Check pressed - waiting for confirmation");
+        setButtonsToConfirm(STATE_CONFIRMING_CHECK);
+        
+    } else if (currentButtonState == STATE_CONFIRMING_CHECK) {
+        Serial.println("Check confirmed! Sending action...");
+        sendPlayerAction(PLAYER_ID, 0);  // betSize = 0 for check
+        setButtonsToNormal();
+        
+    } else {
+        Serial.println("Action cancelled");
+        setButtonsToNormal();
+    }
+}
+
+// Called when Button 3 (CALL) is clicked
+void onButton3Clicked(lv_event_t * e) {
+    if (currentButtonState == STATE_NORMAL) {
+        Serial.println("Call pressed - waiting for confirmation");
+        setButtonsToConfirm(STATE_CONFIRMING_CALL);
+        
+    } else if (currentButtonState == STATE_CONFIRMING_CALL) {
+        Serial.println("Call confirmed! Sending action...");
+        sendPlayerAction(PLAYER_ID, 100);  // TODO: Use actual call amount
+        setButtonsToNormal();
+        
+    } else {
+        Serial.println("Action cancelled");
+        setButtonsToNormal();
+    }
+}
+
+// Called when Button 4 (BET) is clicked
+void onButton4Clicked(lv_event_t * e) {
+    if (currentButtonState == STATE_NORMAL) {
+        Serial.println("Bet pressed - waiting for confirmation");
+        setButtonsToConfirm(STATE_CONFIRMING_BET);
+        
+    } else if (currentButtonState == STATE_CONFIRMING_BET) {
+        Serial.println("Bet confirmed! Sending action...");
+        sendPlayerAction(PLAYER_ID, 200);  // TODO: Use slider value
+        setButtonsToNormal();
+        
+    } else {
+        Serial.println("Action cancelled");
+        setButtonsToNormal();
+    }
+}
 
 Arduino_DataBus *bus = new Arduino_ESP32SPI(
     TFT_DC, TFT_CS, TFT_SCK, TFT_MOSI, TFT_MISO
@@ -138,9 +288,9 @@ void onCardsReceived(CardData cards) {
     Serial.printf("Card 2: %d\n", cards.card2);
     Serial.println("===========================");
     
-    currentHand = cards;           // Copy data
-    hasCards = true;               // Mark as valid
-    drawTwoCards(currentHand.card1, currentHand.card2);
+    g_currentHand = cards;           // Copy data
+    g_hasCards = true;               // Mark as valid
+    drawTwoCards(g_currentHand.card1, g_currentHand.card2);
 }
 
 void setup() {
@@ -154,7 +304,7 @@ void setup() {
     digitalWrite(TFT_BL, HIGH);
     
     gfx->begin();
-    gfx->fillScreen(0x0000); // Clear noise immediately
+    gfx->fillScreen(0x0000);
     
     // 2. Init Touch
     Wire.begin(TOUCH_SDA, TOUCH_SCL);
@@ -182,15 +332,23 @@ void setup() {
     indev_drv.read_cb = my_touch_read;
     lv_indev_drv_register(&indev_drv);
 
-    // 7. Init Comms
+    // 7. Init SquareLine UI
+    ui_init();
+    
+    // 8. NEW: Attach event handlers to buttons
+    lv_obj_add_event_cb(ui_Button1, onButton1Clicked, LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(ui_Button2, onButton2Clicked, LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(ui_Button3, onButton3Clicked, LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(ui_Button4, onButton4Clicked, LV_EVENT_CLICKED, NULL);
+    
+    Serial.println("Button handlers attached");
+
+    // 9. Init Comms
     if (!initPlayerComms(PLAYER_ID, onCardsReceived)) {
         Serial.println("Communication setup failed!");
         return;
     }
     
-    // 8. Init SquareLine UI
-    ui_init();
-
     Serial.printf("MAC: %s\n", getPlayerMAC().c_str());
 }
 

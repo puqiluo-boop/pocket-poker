@@ -18,3 +18,8 @@ bool initPlayerComms(uint8_t playerID, void (*onCardsReceived)(CardData));
 // Get this device's MAC address
 // Useful for debugging which device is which
 String getPlayerMAC();
+
+// Parameters:
+//   - playerID: Which player is sending (1-6)
+//   - betSize: Amount to bet (0 for fold/check)
+void sendPlayerAction(uint8_t playerID, uint32_t betSize);

@@ -2,6 +2,16 @@
 #include <esp_now.h>
 #include <WiFi.h>
 
+enum PlayerState {
+    ActiveState,
+    ConfirmState,
+    InactiveState
+};
+
+enum DealerState {
+
+};
+
 enum MessageType : uint8_t {
     MSG_CONNECTION_CHECK = 0,
     MSG_CARD_DATA = 1,
