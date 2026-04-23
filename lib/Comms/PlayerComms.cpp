@@ -1,64 +1,23 @@
-// PlayerComms.cpp
-// Implementation of player wireless communication
-
 #include "PlayerComms.h"
 
 // ============ INTERNAL STATE ==============
-
-// Broadcast MAC address (FF:FF:FF:FF:FF:FF = send to everyone)
 static uint8_t broadcastAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+static uint8_t thisPlayerID;
 
-// Which player this device is
-static uint8_t thisPlayerID = 0;
-
-// Callback function to call when cards arrive
-static void (*cardReceivedCallback)(CardData) = nullptr;
-
-static void confirmConnection();
+// NEW: A universal callback that accepts any message
+static void (*appMessageCallback)(BaseMessage*) = nullptr; 
 
 // ============ CALLBACKS ==============
 
 static void onDataReceived(const uint8_t *mac, const uint8_t *data, int len) {
-    Serial.println(">>> ESP-NOW DATA RECEIVED <<<");  // NEW
-    Serial.printf("Length: %d bytes\n", len);          // NEW
-    
-    uint8_t msgType = data[0];
-    Serial.printf("Message Type: %d\n", msgType);      // NEW
-    
-    switch (msgType) {
-        case MSG_CONNECTION_CHECK: {
-            Serial.println("-> Connection check message");  // NEW
-            ConnectionCheck receivedData;
-            memcpy(&receivedData, data, sizeof(receivedData));
-            if (receivedData.senderID == 0) {
-                confirmConnection();
-            }
-            return;
-        }
-        case MSG_CARD_DATA: {
-            Serial.println("-> Card data message");         // NEW
-            CardData receivedData;
-            memcpy(&receivedData, data, sizeof(receivedData));
-            
-            Serial.printf("Target player: %d, This player: %d\n",   // NEW
-                         receivedData.playerID, thisPlayerID);
+    // If we have a callback registered, hand the data to the main code
+    if (appMessageCallback != nullptr) {
         
-            if (receivedData.playerID == thisPlayerID) {
-                Serial.println("-> Match! Calling callback");        // NEW
-                if (cardReceivedCallback != nullptr) {
-                    cardReceivedCallback(receivedData);
-                } else {
-                    Serial.println("-> ERROR: Callback is NULL!");   // NEW
-                }
-            } else {
-                Serial.println("-> Player ID mismatch, ignoring");   // NEW
-            }
-            return;
-        }
-        default: {
-            Serial.printf("-> Unknown message type: %d\n", msgType);  // NEW
-            return;
-        }
+        // Cast the raw bytes to our universal base pointer
+        BaseMessage* incomingMsg = (BaseMessage*)data;
+        
+        // Pass it to main.cpp!
+        appMessageCallback(incomingMsg);
     }
 }
 
@@ -70,10 +29,12 @@ static void onSendComplete(const uint8_t *mac_addr, esp_now_send_status_t status
 
 // ============ PUBLIC FUNCTIONS ==============
 
-bool initPlayerComms(uint8_t playerID, void (*onCardsReceived)(CardData)) {
-    // Save player ID and callback for later use
+bool initPlayerComms(uint8_t playerID, void (*onMessage)(BaseMessage*)) {
+    
     thisPlayerID = playerID;
-    cardReceivedCallback = onCardsReceived;
+    
+    // Save the universal callback
+    appMessageCallback = onMessage; 
     
     // Step 1: Enable WiFi in Station mode
     WiFi.mode(WIFI_STA);
@@ -88,7 +49,7 @@ bool initPlayerComms(uint8_t playerID, void (*onCardsReceived)(CardData)) {
     esp_now_register_recv_cb(onDataReceived);
     esp_now_register_send_cb(onSendComplete);
 
-     esp_now_peer_info_t peerInfo = {};
+    esp_now_peer_info_t peerInfo = {};
     memcpy(peerInfo.peer_addr, broadcastAddress, 6);
     peerInfo.channel = 0;       // Auto-select channel
     peerInfo.encrypt = false;   // No encryption (faster)
@@ -104,39 +65,4 @@ bool initPlayerComms(uint8_t playerID, void (*onCardsReceived)(CardData)) {
 
 String getPlayerMAC() {
     return WiFi.macAddress();
-}
-
-void confirmConnection() {
-    ConnectionCheck packet;
-    packet.msgType = MSG_CONNECTION_CHECK;
-    packet.senderID = thisPlayerID;
-
-    esp_err_t result = esp_now_send(broadcastAddress, (uint8_t*)&packet, sizeof(packet));
-    if (result != ESP_OK) {
-        Serial.println("Failed to send connection confirmation");
-    } else {
-        Serial.println("Connection confirmation sent");
-    }
-}
-
-void sendPlayerAction(uint8_t playerID, uint32_t betSize) {
-    // Create the action packet
-    PlayerAction packet;
-    packet.msgType = MSG_PLAYER_ACTION;  // Tell dealer this is an action
-    packet.playerID = playerID;          // Who is acting
-    packet.betSize = betSize;            // How much (0 for fold/check)
-    
-    // Send it via broadcast (dealer will receive it)
-    esp_err_t result = esp_now_send(
-        broadcastAddress,           // Send to everyone (dealer listens)
-        (uint8_t*)&packet,          // Cast our struct to bytes
-        sizeof(packet)              // Send the whole struct
-    );
-    
-    // Debug output
-    if (result != ESP_OK) {
-        Serial.println("Failed to send player action");
-    } else {
-        Serial.printf("Action sent: Player %d, Bet %d\n", playerID, betSize);
-    }
 }

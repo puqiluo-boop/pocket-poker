@@ -8,7 +8,7 @@
 // Broadcast MAC address (FF:FF:FF:FF:FF:FF = send to everyone)
 static uint8_t broadcastAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
-static void (*connectionCallback)(ConnectionCheck) = nullptr;
+static void (*appMessageCallback)(BaseMessage*) = nullptr; 
 
 // ============ CALLBACKS ==============
 

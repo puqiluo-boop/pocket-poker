@@ -8,18 +8,36 @@
 
 // ============ PLAYER FUNCTIONS ==============
 
-// Initialize ESP-NOW for receiving
-// Parameters:
-//   - playerID: Which player this device is (1-6)
-//   - onCardsReceived: Callback function to call when cards arrive
-// Returns: true if successful, false if failed
-bool initPlayerComms(uint8_t playerID, void (*onCardsReceived)(CardData));
+bool initPlayerComms(uint8_t playerID, void (*onMessage)(BaseMessage*));
 
-// Get this device's MAC address
-// Useful for debugging which device is which
 String getPlayerMAC();
 
-// Parameters:
-//   - playerID: Which player is sending (1-6)
-//   - betSize: Amount to bet (0 for fold/check)
-void sendPlayerAction(uint8_t playerID, uint32_t betSize);
+template <typename T>
+bool sendMessage(const T& msgPacket) {
+    
+    // Cast to raw bytes for transmission
+    const uint8_t* rawData = (const uint8_t*)&msgPacket;
+    size_t dataSize = sizeof(T);
+    
+    // Send it
+    esp_err_t result = esp_now_send(broadcastAddress, rawData, dataSize);
+    
+    // If it fails, read the base data!
+    if (result != ESP_OK) {
+        // 1. Cast the generic struct to a BaseMessage pointer
+        const BaseMessage* basePtr = (const BaseMessage*)&msgPacket;
+        
+        // 2. Print the universally shared variables
+        Serial.println("⚠️ Failed to send message! ⚠️");
+        Serial.print(" | Type: ");
+        Serial.print(basePtr->msgType);
+        Serial.print(" | Sender ID: ");
+        Serial.println(basePtr->senderID);
+        Serial.print(" | Receiver ID: ");
+        Serial.println(basePtr->recieverID);
+        
+        return false;
+    }
+    
+    return true;
+}
