@@ -1,18 +1,51 @@
 #include <Arduino.h>
-#include "DisplayManager.h"
-#include "UIController.h"
-#include "CardManager.h"
-#include "Storage.h"
-#include <DealerComms.h>
-#include <PlayerRegistry.h>
+#include "Display/Display.h"
+#include "UI/UI.h"
+#include "CardUtils/CardUtils.h"
+#include "Storage/Storage.h"
+#include <ESPNOW_Shared.h>
+#include "PlayerRegistry/PlayerRegistry.h"
+#include "ESPNOW/ESPNOW.h"
 
 PlayerRegistry playerRegistry;
 
-// Callback when a player connects
-void handlePlayerConnection(ConnectionCheck cc) {
-    playerRegistry.registerPlayer(cc.senderID, String("Player ") + cc.senderID);
-    playerRegistry.updateLastSeen(cc.senderID);
-    Serial.printf("Player %d connected\n", cc.senderID);
+int deck[52];
+
+void handleIncomingNetworkData(BaseMessage* msg) {
+    
+    // 1. The Front Door Filter
+    // If it's not meant for the Dealer (ID 0) and it's not a broadcast, ignore it
+    if (msg->recieverID != DEALER_ID && msg->recieverID != BROADCAST_ID) {
+        return; 
+    }
+
+    // 2. The Router
+    switch (msg->msgType) {
+        
+        case MSG_CONNECTION: {
+            ConnectionMsg* connMsg = (ConnectionMsg*)msg;
+            if(!playerRegistry.isPlayerConnected(connMsg->senderID)) {
+                playerRegistry.connectPlayer(connMsg->senderID, String("Player ") + connMsg->senderID);
+            }
+            playerRegistry.updateLastSeen(connMsg->senderID);
+            Serial.printf("Player %d confirmed connection!\n", connMsg->senderID);
+            break;
+        }
+
+        case MSG_ACTION: {
+            // Because you have the Front Door filter above, you don't even 
+            // need to check if the action was sent to the dealer!
+            
+            // PlayerAction* actionMsg = (PlayerAction*)msg;
+            // processPlayerBet(actionMsg);
+            break;
+        }
+        
+        default: {
+            Serial.printf("Dealer received unknown message type: %d\n", msg->msgType);
+            break;
+        }
+    }
 }
 
 // Callback when "DEAL HAND" button is pressed
@@ -20,20 +53,19 @@ void onDealHandPressed() {
     Serial.println("Dealing new hand...");
     
     // Shuffle the deck
-    int* newHand = shuffleDeck();
+    shuffleDeck(deck);
     
     // Send cards to players
-    int playerCount = playerRegistry.getConnectedCount();
-    broadcastCards(newHand, playerCount);
+    broadcastCards(deck, playerRegistry);
     
     // Display community cards on table screen
-    int offset = 2 * playerCount;
+    int offset = 2 * MAX_PLAYERS;
     drawCommunityCards(
-        newHand[offset + 1],  // Flop 1
-        newHand[offset + 2],  // Flop 2
-        newHand[offset + 3],  // Flop 3
-        newHand[offset + 5],  // Turn
-        newHand[offset + 7]   // River
+        deck[offset],  // Flop 1
+        deck[offset + 1],  // Flop 2
+        deck[offset + 2],  // Flop 3
+        deck[offset + 3],  // Turn
+        deck[offset + 4]   // River
     );
 }
 
@@ -50,7 +82,7 @@ void setup() {
     initTouch();
     
     // 3. Initialize ESP-NOW communication
-    if (!initDealerComms(handlePlayerConnection)) {
+    if (!initComms(0, handleIncomingNetworkData)) {
         Serial.println("ERROR: Communication failed!");
         while(1);
     }

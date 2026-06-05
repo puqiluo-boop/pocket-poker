@@ -1,5 +1,5 @@
-#include "UIController.h"
-#include "DisplayManager.h"
+#include "UI.h"
+#include "Display.h"
 #include <bsp_cst816.h>
 #include <BoardConfig.h>
 

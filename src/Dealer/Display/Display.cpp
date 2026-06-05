@@ -1,4 +1,4 @@
-#include "DisplayManager.h"
+#include "Display.h"
 #include <BoardConfig.h>
 #include <Deck.h>
 #include <Colors.h>

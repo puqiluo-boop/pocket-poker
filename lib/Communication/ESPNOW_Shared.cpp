@@ -1,8 +1,8 @@
-#include "PlayerComms.h"
+#include "ESPNOW_Shared.h"
 
 // ============ INTERNAL STATE ==============
 static uint8_t broadcastAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
-static uint8_t thisPlayerID;
+static uint8_t thisDeviceID;
 
 // NEW: A universal callback that accepts any message
 static void (*appMessageCallback)(BaseMessage*) = nullptr; 
@@ -29,9 +29,9 @@ static void onSendComplete(const uint8_t *mac_addr, esp_now_send_status_t status
 
 // ============ PUBLIC FUNCTIONS ==============
 
-bool initPlayerComms(uint8_t playerID, void (*onMessage)(BaseMessage*)) {
+bool initComms(uint8_t deviceID, void (*onMessage)(BaseMessage*)) {
     
-    thisPlayerID = playerID;
+    thisDeviceID = deviceID;
     
     // Save the universal callback
     appMessageCallback = onMessage; 
@@ -59,10 +59,10 @@ bool initPlayerComms(uint8_t playerID, void (*onMessage)(BaseMessage*)) {
         return false;
     }
 
-    Serial.printf("Player %d listening for cards...\n", playerID);
+    Serial.printf("Device %d's ESP-NOW initalizied.\n", deviceID);
     return true;
 }
 
-String getPlayerMAC() {
+String getMAC() {
     return WiFi.macAddress();
 }

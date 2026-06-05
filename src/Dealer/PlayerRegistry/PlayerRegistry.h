@@ -1,16 +1,16 @@
 #pragma once
 #include <Arduino.h>
+#include <optional>
 
 #define MAX_PLAYERS 8
 
 // Information about each player
 typedef struct {
     uint8_t playerID;           // 1-6
-    bool isConnected;           // Are they currently connected?
+    boolean isConnected;
     String playerName;          // Player's name (optional)
     unsigned long lastSeen;     // millis() when last heard from 
     uint32_t chipCount;   // Total stack size (using 32-bit)
-    uint32_t currentBet;
 
 } PlayerInfo;
 
@@ -23,16 +23,16 @@ public:
     
     // Mark a player as connected
     // Parameters: playerID (1-6), MAC address, optional name
-    void registerPlayer(uint8_t playerID, String name = "");
+    void connectPlayer(uint8_t playerID, String name = "");
     
     // Mark a player as disconnected (haven't heard from them in a while)
     void disconnectPlayer(uint8_t playerID);
     
     // Check if a player is connected
-    bool isPlayerConnected(uint8_t playerID);
+    bool isPlayerConnected(uint8_t playerID) const;
     
     // Get player info
-    PlayerInfo* getPlayer(uint8_t playerID);
+    std::optional<PlayerInfo> getPlayer(uint8_t playerID);
     
     // Get count of connected players
     uint8_t getConnectedCount();
