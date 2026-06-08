@@ -9,13 +9,11 @@
 
 PlayerRegistry playerRegistry;
 
-int deck[52];
-
 void handleIncomingNetworkData(BaseMessage* msg) {
     
     // 1. The Front Door Filter
     // If it's not meant for the Dealer (ID 0) and it's not a broadcast, ignore it
-    if (msg->recieverID != DEALER_ID && msg->recieverID != BROADCAST_ID) {
+    if (msg->reciever != DEALER && msg->reciever != BROADCAST) {
         return; 
     }
 
@@ -24,11 +22,11 @@ void handleIncomingNetworkData(BaseMessage* msg) {
         
         case MSG_CONNECTION: {
             ConnectionMsg* connMsg = (ConnectionMsg*)msg;
-            if(!playerRegistry.isPlayerConnected(connMsg->senderID)) {
-                playerRegistry.connectPlayer(connMsg->senderID, String("Player ") + connMsg->senderID);
+            if(!playerRegistry.isPlayerConnected(connMsg->sender)) {
+                playerRegistry.connectPlayer(connMsg->sender, String("Player ") + connMsg->sender);
             }
-            playerRegistry.updateLastSeen(connMsg->senderID);
-            Serial.printf("Player %d confirmed connection!\n", connMsg->senderID);
+            playerRegistry.updateLastSeen(connMsg->sender);
+            Serial.printf("Player %s confirmed connection!\n", connMsg->sender.c_str());
             break;
         }
 

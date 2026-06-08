@@ -42,20 +42,21 @@ bool sendMessage(const T& msgPacket) {
 
 // ============ CONSTANTS, ENUMS, and STRUCTS ==============
 
-const uint8_t BROADCAST_ID = 255;
-const uint8_t DEALER_ID = 0;
+const String BROADCAST = "BROADCAST";
+const String DEALER = "DEALER";
 
-enum MessageType : uint8_t {
-    MSG_CONNECTION = 0,
-    MSG_HOLE_CARDS = 1,
-    MSG_ACTION = 2
+enum MessageType {
+    MSG_CONNECTION,
+    MSG_HOLE_CARDS,
+    MSG_ACTION,
+    MSG_GAME_UPDATE
     //...
 };
 
 struct BaseMessage {
     MessageType msgType;
-    uint8_t senderID;
-    uint8_t recieverID;
+    String sender;
+    String reciever;
 };
 
 struct ConnectionMsg : public BaseMessage {
