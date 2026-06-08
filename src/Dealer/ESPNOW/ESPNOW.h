@@ -3,4 +3,4 @@
 
 void broadcastConnectionCheck();
 
-void broadcastCards(const int (&deck)[52], const PlayerRegistry& playerRegistry);
+void broadcastCards(std::tuple<uint8_t, uint8_t> cards, String playerMAC);

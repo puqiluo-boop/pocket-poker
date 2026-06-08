@@ -5,10 +5,9 @@
 void broadcastConnectionCheck() {
     ConnectionMsg packet;
     packet.msgType = MSG_CONNECTION;
-    packet.senderID = 0;
-    packet.recieverID = BROADCAST_ID; // Everyone should process this
+    packet.sender = DEALER;
+    packet.reciever = BROADCAST;
 
-    // The template handles the size and casting!
     sendMessage(packet);
 }
 
