@@ -32,6 +32,8 @@ public:
     
     // Get player info
     std::optional<PlayerInfo> getPlayer(String playerMAC);
+
+    std::optional<uint32_t> getChipCount(String playerMAC);
     
     // Get count of connected players
     size_t getConnectedCount() const;
