@@ -2,6 +2,7 @@
 #include <Arduino.h>
 #include <vector>
 #include <optional>
+#include <tuple>
 
 struct PlayerState {
     const String playerMAC;
@@ -12,8 +13,9 @@ struct PlayerState {
     uint32_t inactiveBet; // Amount in the pot from previous streets.
 
     bool hasActed;
+    bool hasFolded;
 
-    PlayerState(String mac, uint8_t cards[2], uint32_t chips) : playerMAC(mac), holeCards{cards[0], cards[1]}, remainingChips(chips), activeBet(0), inactiveBet(0), hasActed(false) {}
+    PlayerState(String mac, uint8_t cards[2], uint32_t chips) : playerMAC(mac), holeCards{cards[0], cards[1]}, remainingChips(chips), activeBet(0), inactiveBet(0), hasActed(false), hasFolded(false) {}
 };
 struct PlayerResult {
     const String playerMAC;
@@ -35,8 +37,7 @@ private:
     const uint32_t smallBlind;
     const uint32_t bigBlind;
 
-    std::vector<PlayerState> playersInHand;
-    std::vector<PlayerState> playersOutOfHand;
+    std::vector<PlayerState> players;
 
     uint8_t playerTurn; // Vector index of player whose turn it is to act
     uint8_t street; // 0, 1, 2, 3, 4 (game finished)
@@ -45,26 +46,32 @@ private:
     uint32_t lastAnyRaiserIndex; // Vector index of last player to raise, minRaise met or not. -1 if no raises this street.
     uint32_t minRaiseIncrement; // Size of last bet or raise. Used to calculate minimum raise amount. 0 if no bet has been made this street
 
-    void incTurn(bool folding = false);
+    void incTurn();
     bool lastAction();
     void nextStreet();
+
+    uint8_t getNumActivePlayers();
 public:
-    GameState(const int deck[52], const uint32_t smallBlind, const uint32_t bigBlind, const std::vector<String> playerMACs) : communityCards{deck[0], deck[1], deck[2], deck[3], deck[4]}, smallBlind(smallBlind), bigBlind(bigBlind) {}
+    GameState(const int deck[52], const uint32_t smallBlind, const uint32_t bigBlind, const std::vector<std::tuple<String, uint32_t>> playerInfo) : communityCards{deck[0], deck[1], deck[2], deck[3], deck[4]}, smallBlind(smallBlind), bigBlind(bigBlind) {}
 
     bool check();
     bool call();
     bool betRaise(uint32_t amount);
     bool fold();
 
+    bool canCheck();
+    bool canCall();
+    // getCallInfo()
+    bool canBet();
+    bool canRaise();
+    // getBetRaiseInfo()
+    bool canFold();
+
     /**
     @returns a vector of the current pots, including side pots if applicable. The first element is the main pot.
     */
     std::vector<Pot> getPots();
-
-    /**
-    @returns the amount a player must call to stay in the hand. Nullopt if player not found.
-    */
-    std::optional<uint32_t> getCallSize(String playerMAC);
-
-    std::vector<PlayerResult> getResults();
+    
+    // Returns nullopt if game is not yet finished. Otherwise, returns a vector of PlayerResult (no particular order).
+    std::optional<std::vector<PlayerResult>> getResults();
 };
