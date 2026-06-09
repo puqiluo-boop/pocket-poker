@@ -7,32 +7,38 @@
 #include <optional>
 #include <algorithm>
 
-//Add parameter for button postion
-GameState::GameState(const int deck[52], const uint32_t smallBlind, const uint32_t bigBlind, const std::vector<std::tuple<String, uint32_t>> playerInfo) :
+void GameState::findActivePlayer() {
+    while(players[playerTurn].hasFolded || players[playerTurn].remainingChips == 0) {
+        playerTurn = (playerTurn + 1) % players.size();
+    }
+}
+
+GameState::GameState(const int deck[52], const uint32_t smallBlind, const uint32_t bigBlind, const std::vector<PlayerInfo>& playerInfo) :
 communityCards{deck[0], deck[1], deck[2], deck[3], deck[4]},
 smallBlind(smallBlind),
 bigBlind(bigBlind) {
-    assert(playerInfo.size() >= 2); // Need at least 2 players to play
+    assert(validPlayers(playerInfo));
 
-    PlayerState smallBlindPlayer = PlayerState(std::get<0>(playerInfo[0]), (uint8_t*)deck[5], std::get<1>(playerInfo[0]));
+    PlayerState smallBlindPlayer = PlayerState(playerInfo[0].playerMAC, (uint8_t*)deck[5], playerInfo[0].chipCount);
     if(smallBlindPlayer.remainingChips == 0) smallBlindPlayer.hasFolded  = true;
     smallBlindPlayer.activeBet = std::min(smallBlind, smallBlindPlayer.remainingChips);
     smallBlindPlayer.remainingChips -= std::min(smallBlind, smallBlindPlayer.remainingChips);
     players.push_back(smallBlindPlayer);
 
-    PlayerState bigBlindPlayer = PlayerState(std::get<0>(playerInfo[1]), (uint8_t*)deck[7], std::get<1>(playerInfo[1]));
+    PlayerState bigBlindPlayer = PlayerState(playerInfo[1].playerMAC, (uint8_t*)deck[7], playerInfo[1].chipCount);
     if(bigBlindPlayer.remainingChips == 0) bigBlindPlayer.hasFolded  = true;
     bigBlindPlayer.activeBet = std::min(bigBlind, bigBlindPlayer.remainingChips);
     bigBlindPlayer.remainingChips -= std::min(bigBlind, bigBlindPlayer.remainingChips);
     players.push_back(bigBlindPlayer);
 
     for (size_t i = 2; i < playerInfo.size(); i++) {
-        PlayerState player = PlayerState(std::get<0>(playerInfo[i]), (uint8_t*)deck[5 + (i * 2)], std::get<1>(playerInfo[i]));
+        PlayerState player = PlayerState(playerInfo[i].playerMAC, (uint8_t*)deck[5 + (i * 2)], playerInfo[i].chipCount);
         if(player.remainingChips == 0) player.hasFolded = true;
         players.push_back(player);
     }
 
     playerTurn = 2 % players.size(); // Start with player to the left of big blind
+    findActivePlayer();
     street = 0;
     callAmount = bigBlind;
     lastAnyRaiserIndex = -1;
@@ -40,7 +46,7 @@ bigBlind(bigBlind) {
 }
 
 /**
- * Increments playerTurn to the next player. Should be called after a player takes a non-fold action.
+ * Increments playerTurn to the next player.
  */
 void GameState::incTurn() {
     if(lastAction()) {
@@ -64,7 +70,8 @@ bool GameState::lastAction() {
 
 void GameState::nextStreet() {
     street++;
-    playerTurn = 0; //Need to fix this for folds and all-ins
+    playerTurn = 0;
+    findActivePlayer();
     callAmount = 0;
     lastAnyRaiserIndex = -1;
     minRaiseIncrement = bigBlind;

@@ -1,4 +1,5 @@
 #pragma once
+#include "../PlayerRegistry/PlayerRegistry.h"
 #include <Arduino.h>
 #include <vector>
 #include <optional>
@@ -46,13 +47,24 @@ private:
     uint32_t lastAnyRaiserIndex; // Vector index of last player to raise, minRaise met or not. -1 if no raises this street.
     uint32_t minRaiseIncrement; // Size of last bet or raise. Used to calculate minimum raise amount. 0 if no bet has been made this street
 
+    void findActivePlayer();
     void incTurn();
     bool lastAction();
     void nextStreet();
 
     uint8_t getNumActivePlayers();
 public:
-    GameState(const int deck[52], const uint32_t smallBlind, const uint32_t bigBlind, const std::vector<std::tuple<String, uint32_t>> playerInfo) : communityCards{deck[0], deck[1], deck[2], deck[3], deck[4]}, smallBlind(smallBlind), bigBlind(bigBlind) {}
+    GameState(const int deck[52], const uint32_t smallBlind, const uint32_t bigBlind, const std::vector<PlayerInfo>& playerInfo) : communityCards{deck[0], deck[1], deck[2], deck[3], deck[4]}, smallBlind(smallBlind), bigBlind(bigBlind) {}
+
+    static bool validPlayers(const std::vector<PlayerInfo>& players) {
+        uint8_t activeCount = 0;
+        for(const PlayerInfo& player : players) {
+            if(player.chipCount > 0) {
+                activeCount++;
+            }
+        }
+        return activeCount >= 2;
+    }
 
     bool check();
     bool call();
