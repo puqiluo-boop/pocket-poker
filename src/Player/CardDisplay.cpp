@@ -1,7 +1,6 @@
 #include "CardDisplay.h"
 #include <Arduino_GFX_Library.h>
 #include <Deck.h>
-#include <Trim.h>
 #include <Colors.h>
 
 #define CARD_Y 10
@@ -15,7 +14,7 @@ extern Arduino_GFX *gfx;  // Defined in UIManager.cpp
 // Helper functions (internal only)
 static bool shouldSkipPixel(int row, int col) {
     for (int i = 0; i < 24; i++) {
-        if (trim[i][0] == row && trim[i][1] == col) {
+        if (Trim[i][0] == row && Trim[i][1] == col) {
             return true;
         }
     }

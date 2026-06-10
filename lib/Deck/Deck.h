@@ -3,101 +3,129 @@
 #include <Arduino.h>
 
 // ==========================================
-// 1. INCLUDE ALL 52 CARD FILES
-// ==========================================
+// 1. CARD DATA DECLARATIONS
+// Avoid including all individual card headers here to prevent include-path issues
+// The actual card data headers should define these symbols; declare them as extern
+// so this header can be used even when the include path for the card files is not set.
 
 #define CARD_WIDTH 64
 #define CARD_HEIGHT 96
 
-// --- SPADES ---
-#include "cards/AceSpades.h"
-#include "cards/TwoSpades.h"
-#include "cards/ThreeSpades.h"
-#include "cards/FourSpades.h"
-#include "cards/FiveSpades.h"
-#include "cards/SixSpades.h"
-#include "cards/SevenSpades.h"
-#include "cards/EightSpades.h"
-#include "cards/NineSpades.h"
-#include "cards/TenSpades.h"
-#include "cards/JackSpades.h"
-#include "cards/QueenSpades.h"
-#include "cards/KingSpades.h"
+// Spades
+extern const uint16_t AceSpades[];
+extern const uint16_t TwoSpades[];
+extern const uint16_t ThreeSpades[];
+extern const uint16_t FourSpades[];
+extern const uint16_t FiveSpades[];
+extern const uint16_t SixSpades[];
+extern const uint16_t SevenSpades[];
+extern const uint16_t EightSpades[];
+extern const uint16_t NineSpades[];
+extern const uint16_t TenSpades[];
+extern const uint16_t JackSpades[];
+extern const uint16_t QueenSpades[];
+extern const uint16_t KingSpades[];
 
-// --- HEARTS ---
-#include "cards/AceHearts.h"
-#include "cards/TwoHearts.h"
-#include "cards/ThreeHearts.h"
-#include "cards/FourHearts.h"
-#include "cards/FiveHearts.h"
-#include "cards/SixHearts.h"
-#include "cards/SevenHearts.h"
-#include "cards/EightHearts.h"
-#include "cards/NineHearts.h"
-#include "cards/TenHearts.h"
-#include "cards/JackHearts.h"
-#include "cards/QueenHearts.h"
-#include "cards/KingHearts.h"
+// Hearts
+extern const uint16_t AceHearts[];
+extern const uint16_t TwoHearts[];
+extern const uint16_t ThreeHearts[];
+extern const uint16_t FourHearts[];
+extern const uint16_t FiveHearts[];
+extern const uint16_t SixHearts[];
+extern const uint16_t SevenHearts[];
+extern const uint16_t EightHearts[];
+extern const uint16_t NineHearts[];
+extern const uint16_t TenHearts[];
+extern const uint16_t JackHearts[];
+extern const uint16_t QueenHearts[];
+extern const uint16_t KingHearts[];
 
-// --- CLUBS ---
-#include "cards/AceClubs.h"
-#include "cards/TwoClubs.h"
-#include "cards/ThreeClubs.h"
-#include "cards/FourClubs.h"
-#include "cards/FiveClubs.h"
-#include "cards/SixClubs.h"
-#include "cards/SevenClubs.h"
-#include "cards/EightClubs.h"
-#include "cards/NineClubs.h"
-#include "cards/TenClubs.h"
-#include "cards/JackClubs.h"
-#include "cards/QueenClubs.h"
-#include "cards/KingClubs.h"
+// Clubs
+extern const uint16_t AceClubs[];
+extern const uint16_t TwoClubs[];
+extern const uint16_t ThreeClubs[];
+extern const uint16_t FourClubs[];
+extern const uint16_t FiveClubs[];
+extern const uint16_t SixClubs[];
+extern const uint16_t SevenClubs[];
+extern const uint16_t EightClubs[];
+extern const uint16_t NineClubs[];
+extern const uint16_t TenClubs[];
+extern const uint16_t JackClubs[];
+extern const uint16_t QueenClubs[];
+extern const uint16_t KingClubs[];
 
-// --- DIAMONDS ---
-#include "cards/AceDiamonds.h"
-#include "cards/TwoDiamonds.h"
-#include "cards/ThreeDiamonds.h"
-#include "cards/FourDiamonds.h"
-#include "cards/FiveDiamonds.h"
-#include "cards/SixDiamonds.h"
-#include "cards/SevenDiamonds.h"
-#include "cards/EightDiamonds.h"
-#include "cards/NineDiamonds.h"
-#include "cards/TenDiamonds.h"
-#include "cards/JackDiamonds.h"
-#include "cards/QueenDiamonds.h"
-#include "cards/KingDiamonds.h"
+// Diamonds
+extern const uint16_t AceDiamonds[];
+extern const uint16_t TwoDiamonds[];
+extern const uint16_t ThreeDiamonds[];
+extern const uint16_t FourDiamonds[];
+extern const uint16_t FiveDiamonds[];
+extern const uint16_t SixDiamonds[];
+extern const uint16_t SevenDiamonds[];
+extern const uint16_t EightDiamonds[];
+extern const uint16_t NineDiamonds[];
+extern const uint16_t TenDiamonds[];
+extern const uint16_t JackDiamonds[];
+extern const uint16_t QueenDiamonds[];
+extern const uint16_t KingDiamonds[];
 
-// --- BACKSIDE ---
-#include "cards/Backside.h"
+// Backside
+extern const uint16_t Backside[];
+
+// --- TRIM ---
+const int Trim[24][2] = {
+    {0, 0},
+    {0, 1},
+    {0, 2},
+    {0, 61},
+    {0, 62},
+    {0, 63},
+    {1, 0},
+    {1, 1},
+    {1, 62},
+    {1, 63},
+    {2, 0},
+    {2, 63},
+    {95, 0},
+    {95, 1},
+    {95, 2},
+    {95, 61},
+    {95, 62},
+    {95, 63},
+    {94, 0},
+    {94, 1},
+    {94, 62},
+    {94, 63},
+    {93, 0},
+    {93, 63},
+};
 
 // ==========================================
 // 2. THE MASTER DECK ARRAY
 // ==========================================
 // Uses PascalCase variable names (e.g. AceSpades)
 
-const uint16_t* deck[53] = {
+const uint16_t* deck[52] = {
     // Spades (0-12)
-    AceSpades, TwoSpades, ThreeSpades, FourSpades, FiveSpades, 
+    TwoSpades, ThreeSpades, FourSpades, FiveSpades, 
     SixSpades, SevenSpades, EightSpades, NineSpades, TenSpades, 
-    JackSpades, QueenSpades, KingSpades,
+    JackSpades, QueenSpades, KingSpades, AceSpades,
 
     // Hearts (13-25)
-    AceHearts, TwoHearts, ThreeHearts, FourHearts, FiveHearts, 
+    TwoHearts, ThreeHearts, FourHearts, FiveHearts, 
     SixHearts, SevenHearts, EightHearts, NineHearts, TenHearts, 
-    JackHearts, QueenHearts, KingHearts,
+    JackHearts, QueenHearts, KingHearts, AceHearts,
 
     // Clubs (26-38)
-    AceClubs, TwoClubs, ThreeClubs, FourClubs, FiveClubs, 
+    TwoClubs, ThreeClubs, FourClubs, FiveClubs, 
     SixClubs, SevenClubs, EightClubs, NineClubs, TenClubs, 
-    JackClubs, QueenClubs, KingClubs,
+    JackClubs, QueenClubs, KingClubs, AceClubs,
 
     // Diamonds (39-51)
-    AceDiamonds, TwoDiamonds, ThreeDiamonds, FourDiamonds, FiveDiamonds, 
+    TwoDiamonds, ThreeDiamonds, FourDiamonds, FiveDiamonds, 
     SixDiamonds, SevenDiamonds, EightDiamonds, NineDiamonds, TenDiamonds, 
-    JackDiamonds, QueenDiamonds, KingDiamonds,
-
-    // Backside (52)
-    Backside
+    JackDiamonds, QueenDiamonds, KingDiamonds, AceDiamonds
 };
+
