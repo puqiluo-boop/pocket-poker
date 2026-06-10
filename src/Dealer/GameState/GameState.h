@@ -28,9 +28,9 @@ struct PlayerResult {
 
 struct Pot {
     const uint32_t size;
-    const std::vector<String> eligiblePlayers; // MAC addresses of players eligible to win this pot
+    std::vector<const PlayerState&> eligiblePlayers;
 
-    Pot(uint32_t s, std::vector<String> players) : size(s), eligiblePlayers(players) {}
+    Pot(uint32_t s, std::vector<const PlayerState&> players) : size(s), eligiblePlayers(players) {}
 };
 class GameState {
 private:
@@ -44,26 +44,26 @@ private:
     uint8_t street; // 0, 1, 2, 3, 4 (game finished)
 
     uint32_t callAmount; // Amount player must call to stay in hand. 0 if no bet has been made this street.
-    uint32_t lastAnyRaiserIndex; // Vector index of last player to raise, minRaise met or not. -1 if no raises this street.
+    uint32_t roundCutoff; // Vector index of last player to raise, minRaise met or not. -1 if no raises this street.
     uint32_t minRaiseIncrement; // Size of last bet or raise. Used to calculate minimum raise amount. 0 if no bet has been made this street
 
-    void findActivePlayer();
-    void incTurn();
+    bool findActivePlayer(uint8_t start, bool forwards = true);
+    bool incTurn();
     bool lastAction();
-    void nextStreet();
+    bool nextStreet();
 
-    uint8_t getNumActivePlayers();
+    bool gameActive();
+    uint8_t numNonfoldedPlayers();
 public:
     GameState(const int deck[52], const uint32_t smallBlind, const uint32_t bigBlind, const std::vector<PlayerInfo>& playerInfo) : communityCards{deck[0], deck[1], deck[2], deck[3], deck[4]}, smallBlind(smallBlind), bigBlind(bigBlind) {}
 
     static bool validPlayers(const std::vector<PlayerInfo>& players) {
-        uint8_t activeCount = 0;
         for(const PlayerInfo& player : players) {
-            if(player.chipCount > 0) {
-                activeCount++;
+            if(player.chipCount == 0) {
+                return false;
             }
         }
-        return activeCount >= 2;
+        return players.size() >= 2; // Need at least 2 players to play
     }
 
     bool check();
@@ -86,4 +86,12 @@ public:
     
     // Returns nullopt if game is not yet finished. Otherwise, returns a vector of PlayerResult (no particular order).
     std::optional<std::vector<PlayerResult>> getResults();
+
+    uint8_t getPlayerTurn() {
+        return playerTurn;
+    }
+
+    uint8_t getStreet() {
+        return street;
+    }
 };

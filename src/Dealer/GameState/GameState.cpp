@@ -7,9 +7,42 @@
 #include <optional>
 #include <algorithm>
 
-void GameState::findActivePlayer() {
+bool GameState::findActivePlayer(uint8_t start, bool forwards = true) {
+    uint8_t savedTurn = start;
     while(players[playerTurn].hasFolded || players[playerTurn].remainingChips == 0) {
-        playerTurn = (playerTurn + 1) % players.size();
+        playerTurn = (playerTurn + (forwards ? 1 : -1)) % players.size();
+        if(playerTurn == savedTurn) { // We've looped through all players and found no active players
+            return false;
+        }
+    }
+    return true;
+}
+
+bool GameState::gameActive() {
+    if(street == 4) {
+        return false;
+    }
+    uint8_t activePlayers = 0;
+    uint8_t nonFoldedPlayers = 0;
+    bool lastActivePlayerHasCalled = false;
+    for(const PlayerState& player : players) {
+        if(!player.hasFolded) {
+            nonFoldedPlayers++;
+            if(player.remainingChips > 0) {
+                activePlayers++;
+                lastActivePlayerHasCalled = player.activeBet >= callAmount;
+            }
+        }
+    }
+    
+    if (nonFoldedPlayers == 1) {
+        return false;
+    } else if(activePlayers == 1 && lastActivePlayerHasCalled) {
+        return false;
+    } else if(activePlayers == 0) {
+        return false;
+    } else {
+        return true;
     }
 }
 
@@ -20,74 +53,73 @@ bigBlind(bigBlind) {
     assert(validPlayers(playerInfo));
 
     PlayerState smallBlindPlayer = PlayerState(playerInfo[0].playerMAC, (uint8_t*)deck[5], playerInfo[0].chipCount);
-    if(smallBlindPlayer.remainingChips == 0) smallBlindPlayer.hasFolded  = true;
     smallBlindPlayer.activeBet = std::min(smallBlind, smallBlindPlayer.remainingChips);
     smallBlindPlayer.remainingChips -= std::min(smallBlind, smallBlindPlayer.remainingChips);
     players.push_back(smallBlindPlayer);
 
     PlayerState bigBlindPlayer = PlayerState(playerInfo[1].playerMAC, (uint8_t*)deck[7], playerInfo[1].chipCount);
-    if(bigBlindPlayer.remainingChips == 0) bigBlindPlayer.hasFolded  = true;
     bigBlindPlayer.activeBet = std::min(bigBlind, bigBlindPlayer.remainingChips);
     bigBlindPlayer.remainingChips -= std::min(bigBlind, bigBlindPlayer.remainingChips);
     players.push_back(bigBlindPlayer);
 
     for (size_t i = 2; i < playerInfo.size(); i++) {
         PlayerState player = PlayerState(playerInfo[i].playerMAC, (uint8_t*)deck[5 + (i * 2)], playerInfo[i].chipCount);
-        if(player.remainingChips == 0) player.hasFolded = true;
         players.push_back(player);
     }
 
     playerTurn = 2 % players.size(); // Start with player to the left of big blind
-    findActivePlayer();
     street = 0;
     callAmount = bigBlind;
-    lastAnyRaiserIndex = -1;
+    roundCutoff = 2 % players.size();
     minRaiseIncrement = bigBlind;
 }
 
 /**
- * Increments playerTurn to the next player.
+ * Increments playerTurn to the next player. Can end rounds and the game entirely.
  */
-void GameState::incTurn() {
+bool GameState::incTurn() {
+    if(!gameActive()) return false;
     if(lastAction()) {
-        nextStreet();
+        return nextStreet();
     } else {
         playerTurn = (playerTurn + 1) % players.size();
 
         PlayerState& player = players[playerTurn];
         if(player.remainingChips == 0 || player.hasFolded) { // Skip players who are all in or have folded
-            incTurn();
+            return incTurn();
         }
     }
+    return true;
 }
 
 /**
- * @return true if the current player's action will end the round
+ * @return true if the current player's (in)action will end the round
  */
 bool GameState::lastAction() {
-    return (lastAnyRaiserIndex == -1 && playerTurn == players.size() - 1) || (playerTurn + 1) % players.size() == lastAnyRaiserIndex;
+    return (playerTurn + 1) % players.size() == roundCutoff;
 }
 
-void GameState::nextStreet() {
+bool GameState::nextStreet() {
+    if(!gameActive()) return false;
     street++;
     playerTurn = 0;
-    findActivePlayer();
+    findActivePlayer(0);
     callAmount = 0;
-    lastAnyRaiserIndex = -1;
+    roundCutoff = 0;
     minRaiseIncrement = bigBlind;
     for(PlayerState& player : players) {
         player.hasActed = false;
         player.inactiveBet += player.activeBet;
         player.activeBet = 0;
     }
-    if(street == 4) {
-        // TODO: If game is over
-    }
+    return true;
 }
 
 bool GameState::check() {
-    if(callAmount == 0) {
-        players[playerTurn].hasActed = true;
+    if(!gameActive()) {return false;}
+    PlayerState& player = players[playerTurn];
+    if(callAmount == player.activeBet) {
+        player.hasActed = true;
         incTurn();
         return true;
     }
@@ -95,9 +127,7 @@ bool GameState::check() {
 }
 
 bool GameState::call() {
-    if(callAmount == 0) {
-        return false;
-    }
+    if(!gameActive() || callAmount == 0) return false;
     PlayerState& player = players[playerTurn];
     if(player.remainingChips < callAmount - player.activeBet) { // All-in call
         player.activeBet += player.remainingChips;
@@ -112,6 +142,7 @@ bool GameState::call() {
 }
 
 bool GameState::betRaise(uint32_t amount) {
+    if(!gameActive()) {return false;}
     PlayerState& player = players[playerTurn];
     if(callAmount - player.activeBet < minRaiseIncrement && player.hasActed) { // Player is not allowed to raise (can only call or fold) due to a short all-in
         return false;
@@ -135,44 +166,33 @@ bool GameState::betRaise(uint32_t amount) {
     assert(player.activeBet > callAmount);
     assert(minRaiseIncrement >= bigBlind);
     callAmount = player.activeBet;
-    lastAnyRaiserIndex = playerTurn;
+    roundCutoff = playerTurn;
 
     player.hasActed = true;
     incTurn();
     return true;
 }
 
-uint8_t GameState::getNumActivePlayers() {
-    uint8_t count = 0;
-    for(const PlayerState& player : players) {
-        if(!player.hasFolded) {
-            count++;
-        }
-    }
-    return count;
-}
-
 bool GameState::fold() {
+    assert(players[playerTurn].remainingChips > 0); // Player cannot fold if they are already all-in
+    if(!gameActive()) {return false;}
     players[playerTurn].hasFolded = true;
-    if(getNumActivePlayers() == 1) {
-         // End game if only one player remains
-    }
     incTurn();
     return true;
 }
 
 std::vector<Pot> GameState::getPots() {
     std::vector<Pot> pots;
-    std::vector<std::tuple<String, uint32_t, bool, bool>> incBetAllInPriority; // Vector of (playerMAC, totalBet) sorted in ascending order of totalBet, with all-in players sorted before non all-in players with the same totalBet
-    for(PlayerState& player : players) {
+    std::vector<std::tuple<const PlayerState&, uint32_t>> incBetAllInPriority; // Vector of (playerState, totalBet) sorted in ascending order of totalBet, with all-in players sorted before non all-in players with the same totalBet
+    for(const PlayerState& player : players) {
         if(player.activeBet > 0 || player.inactiveBet > 0) {
-            incBetAllInPriority.push_back(std::make_tuple(player.playerMAC, player.activeBet + player.inactiveBet, player.remainingChips == 0, player.hasFolded));
+            incBetAllInPriority.push_back(std::make_tuple(player, player.activeBet + player.inactiveBet));
         }
     }
-    std::sort(incBetAllInPriority.begin(), incBetAllInPriority.end(), [](const std::tuple<String, uint32_t, bool, bool>& a, const std::tuple<String, uint32_t, bool, bool>& b) {
+    std::sort(incBetAllInPriority.begin(), incBetAllInPriority.end(), [](const std::tuple<const PlayerState&, uint32_t>& a, const std::tuple<const PlayerState&, uint32_t>& b) {
         if (std::get<1>(a) == std::get<1>(b)) { // If totalBet is the same, sort all-in players first
-            bool aAllIn = std::get<2>(a);
-            bool bAllIn = std::get<2>(b);
+            bool aAllIn = std::get<0>(a).remainingChips == 0;
+            bool bAllIn = std::get<0>(b).remainingChips == 0;
             if (aAllIn && !bAllIn) {
                 return true;
             } else if (!aAllIn && bAllIn) {
@@ -182,30 +202,30 @@ std::vector<Pot> GameState::getPots() {
         return std::get<1>(a) < std::get<1>(b);
     });
     
-    std::vector<String> activePlayers;
+    std::vector<const PlayerState&> activePlayers;
     for(const PlayerState& player : players) {
         // If they haven't folded and aren't all-in (chips > 0), they are active
         if(!player.hasFolded && player.remainingChips > 0) {
-            activePlayers.push_back(player.playerMAC);
+            activePlayers.push_back(player);
         }
     }
 
     uint32_t potTracker = 0;
-    std::vector<String> currentPotPlayers = activePlayers;
+    std::vector<const PlayerState&> currentPotPlayers = activePlayers;
     for(size_t i = 0; i < incBetAllInPriority.size(); i++) {
-        auto& [playerMAC, totalBet, allIn, folded] = incBetAllInPriority[i];
+        auto& [player, totalBet] = incBetAllInPriority[i];
         if(totalBet == 0) continue;
-        if(allIn) {
-            assert(!folded); // A folded player cannot be all-in
-            currentPotPlayers.push_back(playerMAC);
+        if(player.remainingChips == 0) {
+            assert(player.hasFolded); // A folded player cannot be all-in
+            currentPotPlayers.push_back(player);
             potTracker += totalBet;
             for(size_t j = i + 1; j < incBetAllInPriority.size(); j++) {
-                auto& [otherPlayerMAC, otherTotalBet, otherAllIn, otherFolded] = incBetAllInPriority[j];
+                auto& [otherPlayer, otherTotalBet] = incBetAllInPriority[j];
                 potTracker += totalBet;
                 otherTotalBet -= totalBet;
-                if(otherAllIn) {
-                    assert(!otherFolded);
-                    currentPotPlayers.push_back(otherPlayerMAC);
+                if(otherPlayer.remainingChips == 0) {
+                    assert(!otherPlayer.hasFolded); // A folded player cannot be all-in
+                    currentPotPlayers.push_back(otherPlayer);
                 }
             }
             totalBet = 0;
@@ -223,11 +243,11 @@ std::vector<Pot> GameState::getPots() {
     }
     
     if(pots.empty()) { // No bets were made
-        std::vector<String> validPlayers;
-        for(const PlayerState& player : players) {
-            if(!player.hasFolded) {
-                validPlayers.push_back(player.playerMAC);
-            }
+        std::vector<const PlayerState&> validPlayers;
+        validPlayers.reserve(players.size());
+        for(const PlayerState& player : players) { // Inefficient loop for asserting folded status.
+            assert(!player.hasFolded); // If no bets were made, no players should have folded
+            validPlayers.push_back(player);
         }
         pots.push_back(Pot(0, validPlayers));
     }
@@ -235,25 +255,38 @@ std::vector<Pot> GameState::getPots() {
     return pots;
 }
 
+uint8_t GameState::numNonfoldedPlayers() {
+    uint8_t count = 0;
+    for(const PlayerState& player : players) {
+        if(!player.hasFolded) {
+            count++;
+        }
+    }
+    return count;
+}
+
 std::optional<std::vector<PlayerResult>> GameState::getResults() {
-    if(getNumActivePlayers() == 1) {
+    if(gameActive()) return std::nullopt;
+    if(numNonfoldedPlayers() == 1) {
         std::vector<PlayerResult> results;
+        results.reserve(players.size());
+
+        std::vector<Pot> pots = getPots();
+        assert(pots.size() == 1); // If there is only one non-folded player, there should only be the main pot
+        Pot& mainPot = pots[0];
+        assert(mainPot.eligiblePlayers.size() == 1); // If there is only one non-folded player, they should be the only eligible player for the main pot
+        const PlayerState& winner = mainPot.eligiblePlayers[0];
+
+        results.push_back(PlayerResult(winner.playerMAC, 0, mainPot.size - winner.inactiveBet - winner.activeBet - winner.remainingChips)); // TODO: Subtract total starting chips from pot size to get net gain.
         for(const PlayerState& player : players) {
             if(!player.hasFolded) {
-                int32_t netGain = player.activeBet + player.inactiveBet;
-                for(const PlayerState& otherPlayer : players) {
-                    if(otherPlayer.hasFolded) {
-                        int32_t otherTotalBet = otherPlayer.activeBet + otherPlayer.inactiveBet;
-                        results.push_back(PlayerResult(otherPlayer.playerMAC, 0, -otherTotalBet));
-                        netGain += otherTotalBet;
-                    }
-                }
-                results.push_back(PlayerResult(player.playerMAC, 0, netGain));
-                break;
+                int32_t netGain = -player.inactiveBet - player.activeBet;
+                results.push_back(PlayerResult(player.playerMAC, 0, netGain)); // Hand value is 0 since it doesn't matter in this scenario
             }
         }
+
         return results;
-    } else if(street == 4) { 
+    } else { 
         std::vector<PlayerResult> results;
         /*
         for(const PlayerState& player : players) {
@@ -274,5 +307,12 @@ std::optional<std::vector<PlayerResult>> GameState::getResults() {
         return results;
         */
     }
-    return std::nullopt;
+}
+
+uint8_t GameState::getPlayerTurn() {
+    return playerTurn;
+}
+
+uint8_t GameState::getStreet() {
+    return street;
 }
