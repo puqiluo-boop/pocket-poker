@@ -20,12 +20,12 @@ void shuffleDeck(int deck[52]) {
     }
 }
 
-uint32_t evaluatePlayerHand(int hole1, int hole2, const int communityBoard[5]) {
+uint32_t evaluatePlayerHand(int holeCards[2], const int communityBoard[5]) {
     int fullHand[7]; // Create a temporary 7-card array on the Stack (instantly)
 
     // 1. Inject the player's specific hole cards
-    fullHand[0] = hole1;
-    fullHand[1] = hole2;
+    fullHand[0] = holeCards[0];
+    fullHand[1] = holeCards[1];
 
     // 2. Blast the 5 community cards into the rest of the array
     // memcpy is a low-level hardware command that copies memory instantly
