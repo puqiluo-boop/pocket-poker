@@ -6,5 +6,7 @@
 */
 void shuffleDeck(int[52]);
 
-uint32_t getHandValue(int[7]);
+uint32_t evaluatePlayerHand(int hole1, int hole2, const int communityBoard[5])
+
+uint8_t getHandRank(uint32_t handValue);
 

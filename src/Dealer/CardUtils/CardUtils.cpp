@@ -1,8 +1,7 @@
 #include "CardUtils.h"
 #include <Arduino.h>
 #include <algorithm>
-#include <vector>
-#include <cmath>
+#include <cstring>
 
 void shuffleDeck(int deck[52]) {
     // Initialize deck in order (0-51)
@@ -19,6 +18,21 @@ void shuffleDeck(int deck[52]) {
         deck[i] = deck[j];
         deck[j] = temp;
     }
+}
+
+uint32_t evaluatePlayerHand(int hole1, int hole2, const int communityBoard[5]) {
+    int fullHand[7]; // Create a temporary 7-card array on the Stack (instantly)
+
+    // 1. Inject the player's specific hole cards
+    fullHand[0] = hole1;
+    fullHand[1] = hole2;
+
+    // 2. Blast the 5 community cards into the rest of the array
+    // memcpy is a low-level hardware command that copies memory instantly
+    memcpy(&fullHand[2], communityBoard, 5 * sizeof(int));
+
+    // 3. Pass the assembled array to your master evaluator
+    return getHandValue(fullHand);
 }
 
 uint8_t cValue(int card) {
@@ -197,4 +211,8 @@ uint32_t getHandValue(int cards[7]) {
 
     // HIGH CARD
     return makeHandValue(1, cVals[0], cVals[1], cVals[2], cVals[3], cVals[4]);
+}
+
+uint8_t getHandRank(uint32_t handValue) {
+    return (handValue >> 20) & 0xF;
 }
